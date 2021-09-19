@@ -19,8 +19,8 @@ var rootCmd = &cobra.Command{
 meant to be a GitOps native Kubernetes cluster ready to use.
 
 At day 0, GOKP is meant to be GitOps enabled at install.
-This utility is meant to install a cluster ready to be used
-with GitOps praatices and methodologies.`,
+This utility is a "Proof of Concept" build and shoud not
+be used at all.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
