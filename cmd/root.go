@@ -14,13 +14,13 @@ var cfgFile string
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "gokp",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+	Short: "GOKP installs a GitOps ready Kubernetes cluster",
+	Long: `GOKP creates a Kubernetes cluster using CAPI. It is
+meant to be a GitOps native Kubernetes cluster ready to use.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+At day 0, GOKP is meant to be GitOps enabled at install.
+This utility is meant to install a cluster ready to be used
+with GitOps praatices and methodologies.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
