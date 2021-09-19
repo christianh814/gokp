@@ -1,0 +1,41 @@
+
+## BETTER NOTES FOUND ~> https://cluster-api.sigs.k8s.io/user/quick-start.html
+
+
+# Create kind cluster
+kind create cluster
+
+# export aws stuff
+export AWS_REGION=us-east-1
+export AWS_ACCESS_KEY_ID=$(grep aws_access_key_id ~/.aws/credentials | awk -F'=' '{print $NF}' | tr -d '[:space:]')
+export AWS_SECRET_ACCESS_KEY=$(grep aws_secret_access_key ~/.aws/credentials | awk -F'=' '{print $NF}' | tr -d '[:space:]')
+
+# create IAM rules 
+clusterawsadm bootstrap iam create-cloudformation-stack
+
+# encode credentials - this is basically your ~/.aws/credentials file encoded
+export AWS_B64ENCODED_CREDENTIALS=$(clusterawsadm bootstrap credentials encode-as-profile)
+
+# Finally, initialize the management cluster
+clusterctl init --infrastructure aws
+
+
+# Export  key you want to use - should we have the user upload one first or should be upload it for them?
+## AWS CLI:
+## aws ec2 import-key-pair --key-name "chernand" --public-key-material fileb:///home/chernand/.ssh/tempkey.pub --region us-east-1
+export AWS_SSH_KEY_NAME=chernand
+
+# Select instance types
+export AWS_CONTROL_PLANE_MACHINE_TYPE=m6i.xlarge
+export AWS_NODE_MACHINE_TYPE=t3.large
+
+# Generate cluster configuration for CAPI the name here is `capi-quickstart`
+clusterctl generate cluster capi-quickstart \
+--kubernetes-version v1.22.0 \
+--control-plane-machine-count=3 \
+--worker-machine-count=3 > capi-quickstart.yaml
+
+# Apply to the KIND cluster
+kubectl apply -f capi-quickstart.yaml
+
+
