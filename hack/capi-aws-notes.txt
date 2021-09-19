@@ -26,8 +26,8 @@ clusterctl init --infrastructure aws
 export AWS_SSH_KEY_NAME=chernand
 
 # Select instance types
-export AWS_CONTROL_PLANE_MACHINE_TYPE=m6i.xlarge
-export AWS_NODE_MACHINE_TYPE=t3.large
+export AWS_CONTROL_PLANE_MACHINE_TYPE=m4.xlarge
+export AWS_NODE_MACHINE_TYPE=m4.xlarge
 
 # Generate cluster configuration for CAPI the name here is `capi-quickstart`
 clusterctl generate cluster capi-quickstart \
