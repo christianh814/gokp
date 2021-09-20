@@ -39,8 +39,9 @@ mkdir ${exportdir}/cluster
 for cc in $(kubectl api-resources  --namespaced=false -o name)
 do
 	#
-	## Skip things that cannot be exported
-	[[ ${cc} == "componentstatuses" ]] || [[ ${cc} == "namespaces" ]] && continue
+	## Skip things that cannot/shouldnot be exported
+	[[ ${cc} == "componentstatuses" ]] || [[ ${cc} == "namespaces" ]] [[ ${cc} == "certificatesigningrequests" ]] && continue
+
 	#
 	## Skip if resource isn't found
 	[[ $(kubectl get ${cc} 2>&1 | grep -c 'No resources found') -ne 0 ]] && continue

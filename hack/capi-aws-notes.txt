@@ -31,11 +31,27 @@ export AWS_NODE_MACHINE_TYPE=m4.xlarge
 
 # Generate cluster configuration for CAPI the name here is `capi-quickstart`
 clusterctl generate cluster capi-quickstart \
---kubernetes-version v1.22.0 \
+--kubernetes-version v1.22.2 \
 --control-plane-machine-count=3 \
 --worker-machine-count=3 > capi-quickstart.yaml
 
 # Apply to the KIND cluster
 kubectl apply -f capi-quickstart.yaml
 
+# Wait until cluster is initialized
+until [[ $(kubectl get kubeadmcontrolplane capi-quickstart-control-plane -o jsonpath='{.status.initialized}') == "true" ]]; do sleep 10; done ; echo "initialized"
+until [[ $(kubectl get kubeadmcontrolplane capi-quickstart-control-plane -o jsonpath='{.status.replicas}') -eq 3 ]] ; do sleep 10; done; echo "READY"
+
+# Get the kubeconfig
+clusterctl get kubeconfig capi-quickstart > capi-quickstart.kubeconfig
+
+# After it's up, apply calico stuff
+kubectl --kubeconfig=./capi-quickstart.kubeconfig \
+  apply -f https://docs.projectcalico.org/v3.20/manifests/calico.yaml
+
+# Nodes should show "ready" after a bit
+kubectl --kubeconfig=./capi-quickstart.kubeconfig get nodes
+
+# label nodes
+kubectl --kubeconfig=./capi-quickstart.kubeconfig get nodes --no-headers -l '!node-role.kubernetes.io/master' -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}' | xargs -I{} kubectl --kubeconfig=./capi-quickstart.kubeconfig label node {} node-role.kubernetes.io/worker=''
 

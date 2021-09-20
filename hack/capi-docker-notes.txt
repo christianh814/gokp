@@ -17,7 +17,7 @@ clusterctl init --infrastructure docker
 
 # Generate cluster configuration
 clusterctl generate cluster capi-quickstart --flavor development \
-  --kubernetes-version v1.22.0 \
+  --kubernetes-version v1.22.2 \
   --control-plane-machine-count=3 \
   --worker-machine-count=3 \
   > capi-quickstart.yaml
