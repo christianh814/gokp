@@ -22,6 +22,7 @@ clusterctl generate cluster capi-quickstart --flavor development \
   --worker-machine-count=3 \
   > capi-quickstart.yaml
 
+
 # Apply config
 kubectl apply -f capi-quickstart.yaml
 
@@ -36,7 +37,7 @@ clusterctl get kubeconfig capi-quickstart > capi-quickstart.kubeconfig
 
 # Apply CNI
 kubectl --kubeconfig=./capi-quickstart.kubeconfig \
-  apply -f https://raw.githubusercontent.com/kubernetes-sigs/cluster-api-provider-azure/main/templates/addons/calico.yaml
+  apply -f https://docs.projectcalico.org/v3.20/manifests/calico.yaml
 
 # get nodes
 kubectl --kubeconfig=./capi-quickstart.kubeconfig get nodes
