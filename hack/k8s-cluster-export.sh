@@ -30,6 +30,31 @@ if [[ -d ${exportdir}/cluster ]]; then
 fi
 
 #
+## create template files
+cat<<EOF > /tmp/k.cluster.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+
+commonAnnotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-options: Validate=false
+
+resources:
+EOF
+
+cat<<EOF > /tmp/k.deftemp.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+
+commonAnnotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+
+resources:
+EOF
+
+#
 ## Create the cluster dir
 echo "Creating ${exportdir}/cluster"
 mkdir ${exportdir}/cluster
@@ -91,3 +116,28 @@ do
 		done
 	done
 done
+
+
+#
+## Create the kustomize file in each dir
+for dir in $(ls -1 ${exportdir})
+do
+	#
+	## if it's the cluster dir...we need to use that specifc one
+	if [[ ${dir} == "cluster" ]] ; then
+		outfile=/tmp/k.cluster.yaml
+	else
+		outfile=/tmp/k.deftemp.yaml
+	fi
+
+	#
+	## Write the files into that kustomization.yaml
+	for file in $(ls -1 ${exportdir}/${dir})
+	do
+		echo "- ${file}" >> ${outfile}
+	done
+	mv ${outfile} ${exportdir}/${dir}/kustomization.yaml
+done
+
+##
+##
