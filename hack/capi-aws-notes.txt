@@ -55,3 +55,9 @@ kubectl --kubeconfig=./capi-quickstart.kubeconfig get nodes
 # label nodes
 kubectl --kubeconfig=./capi-quickstart.kubeconfig get nodes --no-headers -l '!node-role.kubernetes.io/master' -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}' | xargs -I{} kubectl --kubeconfig=./capi-quickstart.kubeconfig label node {} node-role.kubernetes.io/worker=''
 
+
+
+# CLEANUP -takes a bit
+kubectl delete cluster capi-quickstart
+
+kind delete cluster

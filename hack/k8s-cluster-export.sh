@@ -31,7 +31,7 @@ fi
 
 #
 ## create template files
-cat<<EOF > /tmp/k.cluster.yaml
+cat << EOF > /tmp/k.cluster.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -43,7 +43,7 @@ commonAnnotations:
 resources:
 EOF
 
-cat<<EOF > /tmp/k.deftemp.yaml
+cat << EOY > /tmp/k.deftemp.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -52,7 +52,7 @@ commonAnnotations:
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 
 resources:
-EOF
+EOY
 
 #
 ## Create the cluster dir
@@ -65,7 +65,9 @@ for cc in $(kubectl api-resources  --namespaced=false -o name)
 do
 	#
 	## Skip things that cannot/shouldnot be exported
-	[[ ${cc} == "componentstatuses" ]] || [[ ${cc} == "namespaces" ]] [[ ${cc} == "certificatesigningrequests" ]] && continue
+	[[ ${cc} == "componentstatuses" ]] || \
+	[[ ${cc} == "namespaces" ]] || \
+	[[ ${cc} == "certificatesigningrequests.certificates.k8s.io" ]] && continue
 
 	#
 	## Skip if resource isn't found
@@ -122,13 +124,14 @@ done
 ## Create the kustomize file in each dir
 for dir in $(ls -1 ${exportdir})
 do
+	templatefile=/tmp/k.deftemp.yaml
+
 	#
 	## if it's the cluster dir...we need to use that specifc one
-	if [[ ${dir} == "cluster" ]] ; then
-		outfile=/tmp/k.cluster.yaml
-	else
-		outfile=/tmp/k.deftemp.yaml
-	fi
+	[[ ${dir} == "cluster" ]] &&  templatefile=/tmp/k.cluster.yaml
+
+	outfile=/tmp/k-${dir}.yaml
+	cp ${templatefile} ${outfile}
 
 	#
 	## Write the files into that kustomization.yaml
@@ -136,7 +139,7 @@ do
 	do
 		echo "- ${file}" >> ${outfile}
 	done
-	mv ${outfile} ${exportdir}/${dir}/kustomization.yaml
+	cp ${outfile} ${exportdir}/${dir}/kustomization.yaml
 done
 
 ##
