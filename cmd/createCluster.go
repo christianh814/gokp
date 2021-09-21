@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/christianh814/project-spichern/cmd/github"
+	"github.com/christianh814/project-spichern/cmd/kind"
 	"github.com/christianh814/project-spichern/cmd/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -41,6 +42,12 @@ so beware. There be dragons here.`,
 		}
 
 		// Create KIND instance
+		log.Info("Creating KIND instance")
+		err = kind.CreateKindCluster("gokp-boostrapper", KindCfg)
+
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		// Create CAPI instance on AWS
 		log.Info(awsRegion)

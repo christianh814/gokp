@@ -1,11 +1,13 @@
 package utils
 
 import (
+	"io/ioutil"
 	"os/exec"
 
 	log "github.com/sirupsen/logrus"
 )
 
+// CheckPreReqs() checks to see if you have the proper CLI tools installed
 func CheckPreReqs() (bool, error) {
 	// This is the expected cli utils we expect you to haveinstalled
 	log.Info("Running checks")
@@ -17,4 +19,19 @@ func CheckPreReqs() (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+// CreateWorkDir creates a temp dir to store all the things we need
+func CreateWorkDir() (string, error) {
+	// Genarate a temp directory for our work
+	dir, err := ioutil.TempDir("/tmp", "gokp")
+
+	// check for errors
+	if err != nil {
+		return "", err
+	}
+
+	// return the dirname and no error
+	return dir, nil
+
 }
