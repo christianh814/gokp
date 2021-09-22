@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/christianh814/project-spichern/cmd/utils"
 	"github.com/spf13/cobra"
 
 	"github.com/spf13/viper"
@@ -47,12 +46,6 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
-	// gokp specific
-	WorkDir, _ = utils.CreateWorkDir()
-	KindCfg = WorkDir + "/" + "kind.kubeconfig"
-	// commenting out for now for testing
-	// defer os.RemoveAll(Workdir)
 
 }
 

@@ -59,12 +59,10 @@ so beware. There be dragons here.`,
 
 		// Create the GitOps repo
 
-		_, err = github.CreateRepo(&clusterName, ghToken, &privateRepo)
+		_, err = github.CreateRepo(&clusterName, ghToken, &privateRepo, WorkDir)
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		// Clone the created repo
 
 		// Create repo dir structure
 
@@ -101,6 +99,12 @@ func init() {
 	createClusterCmd.MarkFlagRequired("cluster-name")
 	createClusterCmd.MarkFlagRequired("aws-access-key")
 	createClusterCmd.MarkFlagRequired("aws-secret-key")
+
+	// Vars that get set at Runtime
+	WorkDir, _ = utils.CreateWorkDir()
+	KindCfg = WorkDir + "/" + "kind.kubeconfig"
+	// commenting out for now for testing
+	// defer os.RemoveAll(Workdir)
 
 	// Here you will define your flags and configuration settings.
 
