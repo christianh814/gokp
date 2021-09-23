@@ -65,7 +65,7 @@ so beware. There be dragons here.`,
 			log.Fatal(err)
 		}
 
-		// Create repo dir structure. Including Argo CD Yamls
+		// Create repo dir structure. Including Argo CD install YAMLs and base YAMLs
 		_, err = templates.CreateRepoSkel(&clusterName, WorkDir, ghToken, gitopsrepo)
 		if err != nil {
 			log.Fatal(err)
