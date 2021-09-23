@@ -6,6 +6,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/christianh814/project-spichern/cmd/github"
 	"github.com/christianh814/project-spichern/cmd/utils"
 )
 
@@ -75,6 +76,72 @@ stringData:
 
 var ArgoCdComponetnsApplicationSetKustomize string = `resources:
 - cluster-components.yaml
+`
+var ArgoCdComponentsArgoProjKustomize string = `resources:
+- cluster.yaml
+`
+
+var ArgoCdClusterComponentApplicationSet string = `
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster
+  namespace: argocd
+spec:
+  generators:
+  - git:
+      repoURL: {{.ClusterGitOpsRepo}}
+      revision: main
+      directories:
+      - path: cluster/tenants/*
+  template:
+    metadata:
+      name: {{.RawPathBasename}}
+    spec:
+      project: cluster
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        retry:
+          limit: 15
+          backoff:
+            duration: 15s
+            factor: 2
+            maxDuration: 5m
+      source:
+        repoURL: {{.ClusterGitOpsRepo}}
+        targetRevision: main
+        path: {{.RawPath}}
+      destination:
+        server: https://kubernetes.default.svc
+`
+
+var ArgoCdComponentsArgoProjProject string = `apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: cluster
+  namespace: argocd
+spec:
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  destinations:
+  - namespace: '*'
+    server: '*'
+  sourceRepos:
+  - '*'
+`
+
+var ArgoCdTenantArgoKustomize string = `apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+commonAnnotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-options: Validate=false
+
+bases:
+- ../../bootstrap/overlays/default/
 `
 
 // CreateRepoSkel creates the skeleton repo structure at the given place
@@ -162,7 +229,7 @@ func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo str
 			}
 
 		}
-		//	Now we move on to the components
+		//	Now we move on to the components with appsets
 		if strings.Contains(dir, "components") && strings.Contains(dir, "applicationsets") {
 			// setup dummy values because the func needs it
 			dummyVars := struct {
@@ -177,10 +244,72 @@ func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo str
 				return false, err
 			}
 
+			// Write out the application set based on the vars and template
+			githubInfo := struct {
+				ClusterGitOpsRepo string
+				RawPathBasename   string
+				RawPath           string
+			}{
+				ClusterGitOpsRepo: gitopsrepo,
+				RawPathBasename:   `'{{path.basename}}'`,
+				RawPath:           `'{{path}}'`,
+			}
+			_, err = utils.WriteTemplate(ArgoCdClusterComponentApplicationSet, dir+"/"+"cluster-components.yaml", githubInfo)
+			if err != nil {
+				return false, err
+			}
+
+		}
+
+		//	Components  with argo projects
+		if strings.Contains(dir, "components") && strings.Contains(dir, "argocdproj") {
+
+			dummyVars := struct {
+				Dummykey string
+			}{
+				Dummykey: "unused",
+			}
+
+			// Write out the kustomization file based on the vars and the template
+			_, err := utils.WriteTemplate(ArgoCdComponentsArgoProjKustomize, dir+"/"+"kustomization.yaml", dummyVars)
+			if err != nil {
+				return false, err
+			}
+
+			// Write out the cluster argocd project file based on the vars and the template
+			_, err = utils.WriteTemplate(ArgoCdComponentsArgoProjProject, dir+"/"+"cluster.yaml", dummyVars)
+			if err != nil {
+				return false, err
+			}
+
+		}
+
+		//	Tenants
+		if strings.Contains(dir, "tenants") && strings.Contains(dir, "argocd") {
+
+			// dummy vars for now
+			dummyVars := struct {
+				Dummykey string
+			}{
+				Dummykey: "unused",
+			}
+
+			// Write out the kustomization file based on the vars and the template
+			_, err := utils.WriteTemplate(ArgoCdTenantArgoKustomize, dir+"/"+"kustomization.yaml", dummyVars)
+			if err != nil {
+				return false, err
+			}
+
 		}
 
 	}
 
+	// Commit and push initialize skel
+	log.Info("Pushing initial skel repo structure")
+	_, err := github.CommitAndPush(repoDir, ghtoken, "initializing skel repo structure")
+	if err != nil {
+		return false, err
+	}
 	// If we're here, everything should be okay
 	return true, nil
 }

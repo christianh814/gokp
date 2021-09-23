@@ -59,21 +59,18 @@ so beware. There be dragons here.`,
 		log.Info(awsWMachine)
 
 		// Create the GitOps repo
-
 		_, gitopsrepo, err := github.CreateRepo(&clusterName, ghToken, &privateRepo, WorkDir)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		// Create repo dir structure. Including Argo CD install YAMLs and base YAMLs
+		// Create repo dir structure. Including Argo CD install YAMLs and base YAMLs. Push initial dir structure out
 		_, err = templates.CreateRepoSkel(&clusterName, WorkDir, ghToken, gitopsrepo)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		// Export/Create Cluster YAML to the Repo
-
-		// Make sure kustomize is used
+		// Export/Create Cluster YAML to the Repo, Make sure kustomize is used for the tenants
 
 		// Git push repo
 
@@ -89,7 +86,7 @@ func init() {
 	// Repo specific flags
 	createClusterCmd.Flags().String("github-token", "", "GitHub token to use.")
 	createClusterCmd.Flags().String("cluster-name", "", "Name of your cluster.")
-	createClusterCmd.Flags().BoolP("private-repo", "", false, "Create a private repo.")
+	createClusterCmd.Flags().BoolP("private-repo", "", true, "Create a private repo.")
 
 	//AWS Specific flags
 	createClusterCmd.Flags().String("aws-region", "us-east-1", "Which region to deploy to.")

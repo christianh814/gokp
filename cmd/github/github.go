@@ -3,8 +3,10 @@ package github
 import (
 	"context"
 	"os"
+	"time"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/google/go-github/v39/github"
 	log "github.com/sirupsen/logrus"
@@ -63,4 +65,59 @@ func CreateRepo(name *string, token string, private *bool, workdir string) (bool
 
 	log.Info("Successfully created new repo: ", repoUrl)
 	return true, repoUrl, nil
+}
+
+func CommitAndPush(dir string, token string, msg string) (bool, error) {
+	// Open the dir for commiting
+	repo, err := git.PlainOpen(dir)
+	if err != nil {
+		return false, err
+	}
+
+	// create worktree
+	worktree, err := repo.Worktree()
+	if err != nil {
+		return false, err
+	}
+
+	// Add all you did to the worktree
+	_, err = worktree.Add("cluster")
+	if err != nil {
+		return false, err
+	}
+
+	// verify status
+	_, err = worktree.Status()
+	if err != nil {
+		return false, err
+	}
+
+	//Commit
+	_, err = worktree.Commit(msg, &git.CommitOptions{
+		Author: &object.Signature{
+			When: time.Now(),
+		},
+		All: true,
+	})
+	if err != nil {
+		return false, err
+	}
+
+	//Push to repo
+	err = repo.Push(&git.PushOptions{
+		RemoteName: "origin",
+		Auth: &http.BasicAuth{
+			Username: "unused",
+			Password: token,
+		},
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	// If we're here, we should be good
+	log.Info("Successfully pushed initial commit")
+
+	return true, nil
 }
