@@ -73,6 +73,10 @@ stringData:
   username: not-used
 `
 
+var ArgoCdComponetnsApplicationSetKustomize string = `resources:
+- cluster-components.yaml
+`
+
 // CreateRepoSkel creates the skeleton repo structure at the given place
 func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo string) (bool, error) {
 	// Repo Dir should be our workdir + the name of our cluster
@@ -122,6 +126,7 @@ func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo str
 			}
 
 		}
+
 		//	Check to see if I need to install the ArgoCD Overlays
 		if strings.Contains(dir, "bootstrap") && strings.Contains(dir, "overlays") && strings.Contains(dir, "default") {
 			// setup dummy values because the func needs it
@@ -152,6 +157,22 @@ func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo str
 				GitHubToken:       ghtoken,
 			}
 			_, err = utils.WriteTemplate(ArgoCdOverlayDefaultRepoSecret, dir+"/"+"repo-secret.yaml", githubInfo)
+			if err != nil {
+				return false, err
+			}
+
+		}
+		//	Now we move on to the components
+		if strings.Contains(dir, "components") && strings.Contains(dir, "applicationsets") {
+			// setup dummy values because the func needs it
+			dummyVars := struct {
+				Dummykey string
+			}{
+				Dummykey: "unused",
+			}
+
+			// Write out the kustomization file based on the vars and the template
+			_, err := utils.WriteTemplate(ArgoCdComponetnsApplicationSetKustomize, dir+"/"+"kustomization.yaml", dummyVars)
 			if err != nil {
 				return false, err
 			}
