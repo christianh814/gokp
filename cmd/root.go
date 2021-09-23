@@ -12,6 +12,7 @@ import (
 var cfgFile string
 var WorkDir string
 var KindCfg string
+var CapiCfg string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{

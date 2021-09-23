@@ -16,7 +16,7 @@ func CreateRepo(name *string, token string, private *bool, workdir string) (bool
 	desc := "GitOps repo Cluster " + *name
 	description := &desc
 	autoInit := true
-	log.Info("Creating repo: ", *name)
+	log.Info("Creating repo for: ", *name)
 
 	// display if a private repo was requested
 	if *private {

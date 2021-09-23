@@ -3,6 +3,7 @@ package cmd
 import (
 	"github.com/christianh814/project-spichern/cmd/github"
 	"github.com/christianh814/project-spichern/cmd/kind"
+	"github.com/christianh814/project-spichern/cmd/templates"
 	"github.com/christianh814/project-spichern/cmd/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -64,7 +65,11 @@ so beware. There be dragons here.`,
 			log.Fatal(err)
 		}
 
-		// Create repo dir structure
+		// Create repo dir structure. Including Argo CD Yamls
+		_, err = templates.CreateRepoSkel(&clusterName, WorkDir)
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		// Export/Create Cluster YAML to the Repo
 
@@ -103,6 +108,7 @@ func init() {
 	// Vars that get set at Runtime
 	WorkDir, _ = utils.CreateWorkDir()
 	KindCfg = WorkDir + "/" + "kind.kubeconfig"
+	CapiCfg = WorkDir + "/" + "capi.kubeconfig"
 	// commenting out for now for testing
 	// defer os.RemoveAll(Workdir)
 

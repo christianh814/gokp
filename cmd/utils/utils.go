@@ -2,7 +2,9 @@ package utils
 
 import (
 	"io/ioutil"
+	"os"
 	"os/exec"
+	"text/template"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -34,4 +36,22 @@ func CreateWorkDir() (string, error) {
 	// return the dirname and no error
 	return dir, nil
 
+}
+
+// WriteTemplate is a generic template writing mechanism
+func WriteTemplate(tpl string, fileToCreate string, vars interface{}) (bool, error) {
+	tmpl := template.Must(template.New("").Parse(tpl))
+	file, err := os.Create(fileToCreate)
+	if err != nil {
+		return false, err
+	}
+
+	err = tmpl.Execute(file, vars)
+
+	if err != nil {
+		file.Close()
+		return false, err
+	}
+	file.Close()
+	return true, nil
 }
