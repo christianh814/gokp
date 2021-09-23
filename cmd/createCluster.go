@@ -60,13 +60,13 @@ so beware. There be dragons here.`,
 
 		// Create the GitOps repo
 
-		_, err = github.CreateRepo(&clusterName, ghToken, &privateRepo, WorkDir)
+		_, gitopsrepo, err := github.CreateRepo(&clusterName, ghToken, &privateRepo, WorkDir)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		// Create repo dir structure. Including Argo CD Yamls
-		_, err = templates.CreateRepoSkel(&clusterName, WorkDir)
+		_, err = templates.CreateRepoSkel(&clusterName, WorkDir, ghToken, gitopsrepo)
 		if err != nil {
 			log.Fatal(err)
 		}

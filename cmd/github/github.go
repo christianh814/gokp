@@ -12,7 +12,7 @@ import (
 )
 
 // CreateRepo taks a name, token, and a private request and creates a repository on GitHub
-func CreateRepo(name *string, token string, private *bool, workdir string) (bool, error) {
+func CreateRepo(name *string, token string, private *bool, workdir string) (bool, string, error) {
 	desc := "GitOps repo Cluster " + *name
 	description := &desc
 	autoInit := true
@@ -37,7 +37,7 @@ func CreateRepo(name *string, token string, private *bool, workdir string) (bool
 	repo, _, err := client.Repositories.Create(ctx, "", r)
 	if err != nil {
 		log.Fatal(err)
-		return false, err
+		return false, "", err
 	}
 
 	// Get the remote URL and set the name of the local copy
@@ -58,9 +58,9 @@ func CreateRepo(name *string, token string, private *bool, workdir string) (bool
 
 	if err != nil {
 		log.Fatal(err)
-		return false, err
+		return false, "", err
 	}
 
 	log.Info("Successfully created new repo: ", repoUrl)
-	return true, nil
+	return true, repoUrl, nil
 }
