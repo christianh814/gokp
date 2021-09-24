@@ -59,7 +59,10 @@ so beware. There be dragons here.`,
 		log.Info(awsCPMachine)
 		log.Info(awsWMachine)
 
-		capi.CreateAwsK8sInstance(KindCfg)
+		_, err = capi.CreateAwsK8sInstance(KindCfg)
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		// Create the GitOps repo
 		_, gitopsrepo, err := github.CreateRepo(&clusterName, ghToken, &privateRepo, WorkDir)
