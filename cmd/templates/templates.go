@@ -70,8 +70,10 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   url: {{.ClusterGitOpsRepo}}
-  password: {{.GitHubToken}}
+{{- if .IsPrivate }}
   username: not-used
+  password: {{.GitHubToken}}
+{{ end }}
 `
 
 var ArgoCdComponetnsApplicationSetKustomize string = `resources:
@@ -145,7 +147,7 @@ bases:
 `
 
 // CreateRepoSkel creates the skeleton repo structure at the given place
-func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo string) (bool, error) {
+func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo string, private *bool) (bool, error) {
 	// Repo Dir should be our workdir + the name of our cluster
 	repoDir := workdir + "/" + *name
 	directories := []string{
@@ -219,9 +221,11 @@ func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo str
 			githubInfo := struct {
 				ClusterGitOpsRepo string
 				GitHubToken       string
+				IsPrivate         bool
 			}{
 				ClusterGitOpsRepo: gitopsrepo,
 				GitHubToken:       ghtoken,
+				IsPrivate:         *private,
 			}
 			_, err = utils.WriteTemplate(ArgoCdOverlayDefaultRepoSecret, dir+"/"+"repo-secret.yaml", githubInfo)
 			if err != nil {

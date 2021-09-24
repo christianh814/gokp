@@ -52,14 +52,16 @@ so beware. There be dragons here.`,
 		}
 
 		// Create CAPI instance on AWS
-		log.Info(awsRegion)
-		log.Info(awsAccessKey)
-		log.Info(awsSecretKey)
-		log.Info(awsSSHKey)
-		log.Info(awsCPMachine)
-		log.Info(awsWMachine)
+		awsCredsMap := map[string]string{
+			"AWS_REGION":                     awsRegion,
+			"AWS_ACCESS_KEY_ID":              awsAccessKey,
+			"AWS_SECRET_ACCESS_KEY":          awsSecretKey,
+			"AWS_SSH_KEY_NAME":               awsSSHKey,
+			"AWS_CONTROL_PLANE_MACHINE_TYPE": awsCPMachine,
+			"AWS_NODE_MACHINE_TYPE":          awsWMachine,
+		}
 
-		_, err = capi.CreateAwsK8sInstance(KindCfg)
+		_, err = capi.CreateAwsK8sInstance(KindCfg, awsCredsMap)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -71,7 +73,7 @@ so beware. There be dragons here.`,
 		}
 
 		// Create repo dir structure. Including Argo CD install YAMLs and base YAMLs. Push initial dir structure out
-		_, err = templates.CreateRepoSkel(&clusterName, WorkDir, ghToken, gitopsrepo)
+		_, err = templates.CreateRepoSkel(&clusterName, WorkDir, ghToken, gitopsrepo, &privateRepo)
 		if err != nil {
 			log.Fatal(err)
 		}
