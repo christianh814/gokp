@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/christianh814/project-spichern/cmd/capi"
 	"github.com/christianh814/project-spichern/cmd/github"
 	"github.com/christianh814/project-spichern/cmd/kind"
 	"github.com/christianh814/project-spichern/cmd/templates"
@@ -57,6 +58,8 @@ so beware. There be dragons here.`,
 		log.Info(awsSSHKey)
 		log.Info(awsCPMachine)
 		log.Info(awsWMachine)
+
+		capi.CreateAwsK8sInstance(KindCfg)
 
 		// Create the GitOps repo
 		_, gitopsrepo, err := github.CreateRepo(&clusterName, ghToken, &privateRepo, WorkDir)
