@@ -18,7 +18,7 @@ import (
 var CNIurl string = "https://docs.projectcalico.org/v3.20/manifests/calico.yaml"
 
 // CreateAwsK8sInstance creates a Kubernetes cluster on AWS using CAPI and CAPI-AWS
-func CreateAwsK8sInstance(kindkconfig string, awscreds map[string]string) (bool, error) {
+func CreateAwsK8sInstance(kindkconfig string, clusterName *string, awscreds map[string]string) (bool, error) {
 	// Export AWS settings as Env vars
 	for k := range awscreds {
 		os.Setenv(k, awscreds[k])
@@ -91,7 +91,16 @@ func CreateAwsK8sInstance(kindkconfig string, awscreds map[string]string) (bool,
 		return false, err
 	}
 
-	cto := client.GetClusterTemplateOptions{}
+	//	TODO: Make Kubernetes version an option
+	var cpMachineCount int64 = 3
+	var workerMachineCount int64 = 3
+	cto := client.GetClusterTemplateOptions{
+		Kubeconfig:               capiclient.Kubeconfig{Path: kindkconfig},
+		ClusterName:              *clusterName,
+		ControlPlaneMachineCount: &cpMachineCount,
+		WorkerMachineCount:       &workerMachineCount,
+		KubernetesVersion:        "v1.22.2",
+	}
 	// Wait for the controlplane to have 3 nodes and that they are initialized
 
 	// Write out CAPI kubeconfig and save it
