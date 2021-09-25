@@ -3,7 +3,12 @@ package capi
 import (
 	"os"
 
+	//"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	cfn "github.com/aws/aws-sdk-go/service/cloudformation"
 	log "github.com/sirupsen/logrus"
+	"sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/cloudformation/bootstrap"
+	cloudformation "sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/cloudformation/service"
 	capiclient "sigs.k8s.io/cluster-api/cmd/clusterctl/client"
 	//capiutil "sigs.k8s.io/cluster-api/util"
 )
@@ -30,6 +35,20 @@ func CreateAwsK8sInstance(kindkconfig string, awscreds map[string]string) (bool,
 
 	// Boostrapping Cloud Formation stack on AWS
 	log.Info("Boostrapping Cloud Formation stack on AWS")
+	template := bootstrap.NewTemplate()
+	sess, err := session.NewSession()
+	if err != nil {
+		return false, err
+	}
+
+	cfnSvc := cloudformation.NewService(cfn.New(sess))
+
+	err = cfnSvc.ReconcileBootstrapStack(template.Spec.StackName, *template.RenderCloudFormation())
+	if err != nil {
+		return false, err
+	}
+
+	cfnSvc.ShowStackResources(template.Spec.StackName)
 
 	//Encode credentials
 	// init AWS provider into the Kind instance
