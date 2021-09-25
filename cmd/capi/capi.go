@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/cloudformation/bootstrap"
 	cloudformation "sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/cloudformation/service"
 	creds "sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/credentials"
+	"sigs.k8s.io/cluster-api/cmd/clusterctl/client"
 	capiclient "sigs.k8s.io/cluster-api/cmd/clusterctl/client"
 	//capiutil "sigs.k8s.io/cluster-api/util"
 )
@@ -83,8 +84,14 @@ func CreateAwsK8sInstance(kindkconfig string, awscreds map[string]string) (bool,
 		return false, err
 	}
 
-	//Generate cluster YAML for CAPI on KIND and apply it
+	// Generate cluster YAML for CAPI on KIND and apply it
 
+	newClient, err := capiclient.New("")
+	if err != nil {
+		return false, err
+	}
+
+	cto := client.GetClusterTemplateOptions{}
 	// Wait for the controlplane to have 3 nodes and that they are initialized
 
 	// Write out CAPI kubeconfig and save it
