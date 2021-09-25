@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/cloudformation/bootstrap"
 	cloudformation "sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/cloudformation/service"
+	creds "sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/credentials"
 	capiclient "sigs.k8s.io/cluster-api/cmd/clusterctl/client"
 	//capiutil "sigs.k8s.io/cluster-api/util"
 )
@@ -48,9 +49,23 @@ func CreateAwsK8sInstance(kindkconfig string, awscreds map[string]string) (bool,
 		return false, err
 	}
 
-	cfnSvc.ShowStackResources(template.Spec.StackName)
+	err = cfnSvc.ShowStackResources(template.Spec.StackName)
+	if err != nil {
+		return false, err
+	}
 
 	//Encode credentials
+	awsCreds, err := creds.NewAWSCredentialFromDefaultChain(awscreds["AWS_REGION"])
+	if err != nil {
+		return false, err
+	}
+
+	b64creds, err := awsCreds.RenderBase64EncodedAWSDefaultProfile()
+	os.Setenv("AWS_B64ENCODED_CREDENTIALS", b64creds)
+	if err != nil {
+		return false, err
+	}
+
 	// init AWS provider into the Kind instance
 	log.Info("Initializing AWS provider into the Kind instance")
 
