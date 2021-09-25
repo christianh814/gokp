@@ -11,7 +11,6 @@ import (
 	"sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/cloudformation/bootstrap"
 	cloudformation "sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/cloudformation/service"
 	creds "sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/credentials"
-	"sigs.k8s.io/cluster-api/cmd/clusterctl/client"
 	capiclient "sigs.k8s.io/cluster-api/cmd/clusterctl/client"
 	//capiutil "sigs.k8s.io/cluster-api/util"
 )
@@ -86,6 +85,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	// Generate cluster YAML for CAPI on KIND and apply it
+	log.Info("Generating AWS K8S cluster configurations")
 	newClient, err := capiclient.New("")
 	if err != nil {
 		return false, err
@@ -95,7 +95,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	//	TODO: Make Kubernetes version an option
 	var cpMachineCount int64 = 3
 	var workerMachineCount int64 = 3
-	cto := client.GetClusterTemplateOptions{
+	cto := capiclient.GetClusterTemplateOptions{
 		Kubeconfig:               capiclient.Kubeconfig{Path: kindkconfig},
 		ClusterName:              *clusterName,
 		ControlPlaneMachineCount: &cpMachineCount,
@@ -117,6 +117,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	// Apply the YAML to the KIND instance so that the cluster gets installed on AWS
+	log.Info("Configuration complete, installing cluster")
 
 	// Wait for the controlplane to have 3 nodes and that they are initialized
 
