@@ -7,6 +7,7 @@ import (
 	"text/template"
 
 	log "github.com/sirupsen/logrus"
+	"sigs.k8s.io/cluster-api/cmd/clusterctl/client"
 )
 
 // CheckPreReqs() checks to see if you have the proper CLI tools installed
@@ -54,4 +55,24 @@ func WriteTemplate(tpl string, fileToCreate string, vars interface{}) (bool, err
 	}
 	file.Close()
 	return true, nil
+}
+
+// WriteYamlOutput writes YAML to the specified file path
+func WriteYamlOutput(printer client.YamlPrinter, file string) error {
+	f, err := os.Create(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	yaml, err := printer.Yaml()
+	yaml = append(yaml, '\n')
+	if err != nil {
+		return err
+	}
+
+	if _, err := f.Write(yaml); err != nil {
+		return err
+	}
+	return nil
 }

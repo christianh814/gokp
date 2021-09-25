@@ -61,7 +61,8 @@ so beware. There be dragons here.`,
 			"AWS_NODE_MACHINE_TYPE":          awsWMachine,
 		}
 
-		_, err = capi.CreateAwsK8sInstance(KindCfg, awsCredsMap)
+		//CHX
+		_, err = capi.CreateAwsK8sInstance(KindCfg, &clusterName, WorkDir, awsCredsMap)
 		if err != nil {
 			log.Fatal(err)
 		}

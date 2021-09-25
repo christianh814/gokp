@@ -6,6 +6,7 @@ import (
 	//"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	cfn "github.com/aws/aws-sdk-go/service/cloudformation"
+	"github.com/christianh814/project-spichern/cmd/utils"
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/cloudformation/bootstrap"
 	cloudformation "sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/cloudformation/service"
@@ -18,7 +19,7 @@ import (
 var CNIurl string = "https://docs.projectcalico.org/v3.20/manifests/calico.yaml"
 
 // CreateAwsK8sInstance creates a Kubernetes cluster on AWS using CAPI and CAPI-AWS
-func CreateAwsK8sInstance(kindkconfig string, clusterName *string, awscreds map[string]string) (bool, error) {
+func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir string, awscreds map[string]string) (bool, error) {
 	// Export AWS settings as Env vars
 	for k := range awscreds {
 		os.Setenv(k, awscreds[k])
@@ -85,12 +86,12 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, awscreds map[
 	}
 
 	// Generate cluster YAML for CAPI on KIND and apply it
-
 	newClient, err := capiclient.New("")
 	if err != nil {
 		return false, err
 	}
 
+	//	Set up options to write out the install YAML
 	//	TODO: Make Kubernetes version an option
 	var cpMachineCount int64 = 3
 	var workerMachineCount int64 = 3
@@ -101,6 +102,22 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, awscreds map[
 		WorkerMachineCount:       &workerMachineCount,
 		KubernetesVersion:        "v1.22.2",
 	}
+
+	//	Load up the config with the options
+	installYaml, err := newClient.GetClusterTemplate(cto)
+
+	if err != nil {
+		return false, err
+	}
+
+	// Write the install file out
+	err = utils.WriteYamlOutput(installYaml, workdir+"/"+"install-cluster.yaml")
+	if err != nil {
+		return false, err
+	}
+
+	// Apply the YAML to the KIND instance so that the cluster gets installed on AWS
+
 	// Wait for the controlplane to have 3 nodes and that they are initialized
 
 	// Write out CAPI kubeconfig and save it
