@@ -162,7 +162,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 
 	// Write out CAPI kubeconfig and save it
 
-	//Apply the CNI solution. For now we use Calio
+	//Apply the CNI solution. For now we use Calico
 	//	TODO: This should be something that is an end user can choose
 
 	// Wait until all Nodes are READY
