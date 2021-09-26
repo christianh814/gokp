@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
@@ -142,7 +143,27 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	if err != nil {
 		return false, err
 	}
-	//clusterInstallClientSet, err := kubernetes.NewForConfig(clusterInstallConfig)
+	//	Wait for the deployment to rollout
+	clusterInstallClientSet, err := kubernetes.NewForConfig(clusterInstallConfig)
+	if err != nil {
+		return false, err
+	}
+
+	dClient := clusterInstallClientSet.AppsV1().Deployments("capa-system")
+	depl, err := dClient.Get(context.TODO(), "capa-controller-manager", metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+
+	//	check the status until it's available
+	for {
+		numOfReplicas := depl.Status.AvailableReplicas
+		if numOfReplicas == 1 {
+			break
+		}
+	}
+
+	//	Apply the config now that the capa controller is rolled out
 	err = doSSA(context.TODO(), clusterInstallConfig, workdir+"/"+"install-cluster.yaml")
 
 	if err != nil {
