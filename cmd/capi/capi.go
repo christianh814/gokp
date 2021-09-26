@@ -117,7 +117,19 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	// Apply the YAML to the KIND instance so that the cluster gets installed on AWS
+	//CHX
 	log.Info("Configuration complete, installing cluster")
+	//	use clientcmd to apply the configuration
+	/*
+		clusterInstallConfig, err := clientcmd.BuildConfigFromFlags("", kindkconfig)
+		if err != nil {
+			return false, err
+		}
+
+		clusterInstallClientSet, err := kubernetes.NewForConfig(clusterInstallConfig)
+	*/
+
+	//clusterInstallClientSet.Result
 
 	// Wait for the controlplane to have 3 nodes and that they are initialized
 
