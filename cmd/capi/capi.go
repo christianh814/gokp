@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
-	"time"
 
 	//"github.com/aws/aws-sdk-go/aws"
 	"context"
@@ -27,7 +26,6 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
@@ -145,33 +143,23 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	if err != nil {
 		return false, err
 	}
+
 	//	Wait for the deployment to rollout
 	//		TODO: There's probably a better way of doing this
-	time.Sleep(10 * time.Second)
-	clusterInstallClientSet, err := kubernetes.NewForConfig(clusterInstallConfig)
-	if err != nil {
-		return false, err
-	}
-
-	dClient := clusterInstallClientSet.AppsV1().Deployments("capa-system")
-	depl, err := dClient.Get(context.TODO(), "capa-controller-manager", metav1.GetOptions{})
-	if err != nil {
-		return false, err
-	}
-
-	//	check the status until it's available
-	var numOfReplicas int32 = 0
 	counter := 0
 	for runs := 10; counter <= runs; counter++ {
 		if counter == runs {
 			return false, errors.New("capa-controller-manager took too long to come up")
 		}
-		numOfReplicas = depl.Status.AvailableReplicas
-		if numOfReplicas > 0 {
+		n, err := utils.DeploymentAvailableReplicas(clusterInstallConfig, "capa-system", "capa-controller-manager")
+		if err != nil {
+			return false, err
+		}
+
+		if n > int32(0) {
 			break
 		}
-		log.Info(numOfReplicas)
-		time.Sleep(time.Second)
+
 	}
 
 	//	Apply the config now that the capa controller is rolled out
@@ -180,8 +168,6 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	if err != nil {
 		return false, err
 	}
-
-	//clusterInstallClientSet.Result
 
 	// Wait for the controlplane to have 3 nodes and that they are initialized
 
