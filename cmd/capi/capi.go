@@ -146,6 +146,8 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 		return false, err
 	}
 	//	Wait for the deployment to rollout
+	//		TODO: There's probably a better way of doing this
+	time.Sleep(10 * time.Second)
 	clusterInstallClientSet, err := kubernetes.NewForConfig(clusterInstallConfig)
 	if err != nil {
 		return false, err
@@ -171,6 +173,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 		log.Info(numOfReplicas)
 		time.Sleep(time.Second)
 	}
+
 	//	Apply the config now that the capa controller is rolled out
 	err = doSSA(context.TODO(), clusterInstallConfig, workdir+"/"+"install-cluster.yaml")
 
