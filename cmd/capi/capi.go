@@ -131,7 +131,6 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	// Write the install file out
-	log.Info(workdir)
 	installClusterYaml := workdir + "/" + "install-cluster.yaml"
 	err = utils.WriteYamlOutput(installYaml, installClusterYaml)
 	if err != nil {
