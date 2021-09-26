@@ -130,7 +130,9 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	// Write the install file out
-	err = utils.WriteYamlOutput(installYaml, workdir+"/"+"install-cluster.yaml")
+	log.Info(workdir)
+	installClusterYaml := workdir + "/" + "install-cluster.yaml"
+	err = utils.WriteYamlOutput(installYaml, installClusterYaml)
 	if err != nil {
 		return false, err
 	}
@@ -152,7 +154,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	time.Sleep(15 * time.Second)
 
 	//	Apply the config now that the capa controller is rolled out
-	err = doSSA(context.TODO(), clusterInstallConfig, workdir+"/"+"install-cluster.yaml")
+	err = doSSA(context.TODO(), clusterInstallConfig, installClusterYaml)
 
 	if err != nil {
 		return false, err
