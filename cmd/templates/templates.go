@@ -95,7 +95,7 @@ spec:
       repoURL: {{.ClusterGitOpsRepo}}
       revision: main
       directories:
-      - path: cluster/tenants/*
+      - path: cluster/core/*
   template:
     metadata:
       name: {{.RawPathBasename}}
@@ -156,7 +156,7 @@ func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo str
 		repoDir + "/" + "cluster/bootstrap/overlays/default",
 		repoDir + "/" + "cluster/components/applicationsets/",
 		repoDir + "/" + "cluster/components/argocdproj/",
-		repoDir + "/" + "cluster/tenants/argocd/",
+		repoDir + "/" + "cluster/core/argocd/",
 	}
 
 	// check if the dir is there. If not, error out
@@ -289,7 +289,7 @@ func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo str
 		}
 
 		//	Tenants
-		if strings.Contains(dir, "tenants") && strings.Contains(dir, "argocd") {
+		if strings.Contains(dir, "core") && strings.Contains(dir, "argocd") {
 
 			// dummy vars for now
 			dummyVars := struct {

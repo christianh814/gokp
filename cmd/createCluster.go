@@ -79,7 +79,7 @@ so beware. There be dragons here.`,
 			log.Fatal(err)
 		}
 
-		// Export/Create Cluster YAML to the Repo, Make sure kustomize is used for the tenants
+		// Export/Create Cluster YAML to the Repo, Make sure kustomize is used for the core components
 
 		// Git push repo
 

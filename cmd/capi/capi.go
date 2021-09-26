@@ -146,7 +146,9 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	//	Wait for the deployment to rollout
-	//		TODO: There's probably a better way of doing this. Sleeping for now
+	//		TODO: There's probably a better way of doing this.
+	//		We want to wait for "capa-controller-manager" deployment in the "capa-system" ns to
+	//		rollout before we proceed. Sleeping for now
 	time.Sleep(15 * time.Second)
 
 	//	Apply the config now that the capa controller is rolled out
