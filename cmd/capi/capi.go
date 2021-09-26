@@ -120,6 +120,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 		ControlPlaneMachineCount: &cpMachineCount,
 		WorkerMachineCount:       &workerMachineCount,
 		KubernetesVersion:        "v1.22.2",
+		TargetNamespace:          "default",
 	}
 
 	//	Load up the config with the options
