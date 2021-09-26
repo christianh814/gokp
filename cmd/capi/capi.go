@@ -156,13 +156,15 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	//	check the status until it's available
-	for {
-		numOfReplicas := depl.Status.AvailableReplicas
-		if numOfReplicas == 1 {
-			break
+	log.Info(depl.Status.AvailableReplicas)
+	/*
+		for {
+			numOfReplicas := depl.Status.AvailableReplicas
+			if numOfReplicas == 1 {
+				break
+			}
 		}
-	}
-
+	*/
 	//	Apply the config now that the capa controller is rolled out
 	err = doSSA(context.TODO(), clusterInstallConfig, workdir+"/"+"install-cluster.yaml")
 
