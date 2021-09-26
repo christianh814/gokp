@@ -1,9 +1,9 @@
 package capi
 
 import (
-	"errors"
 	"io/ioutil"
 	"os"
+	"time"
 
 	//"github.com/aws/aws-sdk-go/aws"
 	"context"
@@ -138,6 +138,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	// Apply the YAML to the KIND instance so that the cluster gets installed on AWS
 	//CHX
 	log.Info("Configuration complete, installing cluster")
+
 	//	use clientcmd to apply the configuration
 	clusterInstallConfig, err := clientcmd.BuildConfigFromFlags("", kindkconfig)
 	if err != nil {
@@ -145,22 +146,8 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	//	Wait for the deployment to rollout
-	//		TODO: There's probably a better way of doing this
-	counter := 0
-	for runs := 10; counter <= runs; counter++ {
-		if counter == runs {
-			return false, errors.New("capa-controller-manager took too long to come up")
-		}
-		n, err := utils.DeploymentAvailableReplicas(clusterInstallConfig, "capa-system", "capa-controller-manager")
-		if err != nil {
-			return false, err
-		}
-
-		if n > int32(0) {
-			break
-		}
-
-	}
+	//		TODO: There's probably a better way of doing this. Sleeping for now
+	time.Sleep(15 * time.Second)
 
 	//	Apply the config now that the capa controller is rolled out
 	err = doSSA(context.TODO(), clusterInstallConfig, workdir+"/"+"install-cluster.yaml")

@@ -1,17 +1,12 @@
 package utils
 
 import (
-	"context"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"text/template"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	log "github.com/sirupsen/logrus"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/cluster-api/cmd/clusterctl/client"
 )
 
@@ -80,21 +75,4 @@ func WriteYamlOutput(printer client.YamlPrinter, file string) error {
 		return err
 	}
 	return nil
-}
-
-// DeploymentAvailableReplicas just returns the available replicas
-func DeploymentAvailableReplicas(clusterInstallConfig *rest.Config, namespace string, deployment string) (int32, error) {
-
-	clusterInstallClientSet, err := kubernetes.NewForConfig(clusterInstallConfig)
-	if err != nil {
-		return 0, err
-	}
-
-	dClient := clusterInstallClientSet.AppsV1().Deployments(namespace)
-	depl, err := dClient.Get(context.TODO(), deployment, metav1.GetOptions{})
-	if err != nil {
-		return 0, err
-	}
-
-	return depl.Status.AvailableReplicas, nil
 }
