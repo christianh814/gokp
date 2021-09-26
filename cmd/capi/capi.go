@@ -167,6 +167,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 		if numOfReplicas > 0 {
 			break
 		}
+		log.Info(numOfReplicas)
 		time.Sleep(time.Second)
 	}
 	//	Apply the config now that the capa controller is rolled out
