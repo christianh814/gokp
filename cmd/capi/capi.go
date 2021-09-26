@@ -1,8 +1,10 @@
 package capi
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
+	"time"
 
 	//"github.com/aws/aws-sdk-go/aws"
 	"context"
@@ -156,15 +158,17 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	//	check the status until it's available
-	log.Info(depl.Status.AvailableReplicas)
-	/*
-		for {
-			numOfReplicas := depl.Status.AvailableReplicas
-			if numOfReplicas == 1 {
-				break
-			}
+	counter := 0
+	for runs := 10; counter <= runs; counter++ {
+		if counter == runs {
+			return false, errors.New("capa-controller-manager took too long to come up")
 		}
-	*/
+		numOfReplicas := depl.Status.AvailableReplicas
+		if numOfReplicas > 0 {
+			break
+		}
+		time.Sleep(time.Second)
+	}
 	//	Apply the config now that the capa controller is rolled out
 	err = doSSA(context.TODO(), clusterInstallConfig, workdir+"/"+"install-cluster.yaml")
 
