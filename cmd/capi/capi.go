@@ -158,12 +158,13 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	//	check the status until it's available
+	var numOfReplicas int32 = 0
 	counter := 0
 	for runs := 10; counter <= runs; counter++ {
 		if counter == runs {
 			return false, errors.New("capa-controller-manager took too long to come up")
 		}
-		numOfReplicas := depl.Status.AvailableReplicas
+		numOfReplicas = depl.Status.AvailableReplicas
 		if numOfReplicas > 0 {
 			break
 		}
