@@ -37,6 +37,8 @@ so beware. There be dragons here.`,
 		awsCPMachine, _ := cmd.Flags().GetString("aws-control-plane-machine")
 		awsWMachine, _ := cmd.Flags().GetString("aws-node-machine")
 
+		CapiCfg := WorkDir + "/" + clusterName + ".kubeconfig"
+
 		// Run PreReq Checks
 		_, err := utils.CheckPreReqs()
 		if err != nil {
@@ -44,12 +46,12 @@ so beware. There be dragons here.`,
 		}
 
 		// Create KIND instance
-		log.Info("Creating KIND instance")
+		log.Info("Creating KIND bootstrap instance")
 		err = kind.CreateKindCluster("gokp-boostrapper", KindCfg)
-
 		if err != nil {
 			log.Fatal(err)
 		}
+		log.Info("KIND Bootstrapper created")
 
 		// Create CAPI instance on AWS
 		awsCredsMap := map[string]string{
@@ -62,7 +64,7 @@ so beware. There be dragons here.`,
 		}
 
 		//CHX
-		_, err = capi.CreateAwsK8sInstance(KindCfg, &clusterName, WorkDir, awsCredsMap)
+		_, err = capi.CreateAwsK8sInstance(KindCfg, &clusterName, WorkDir, awsCredsMap, CapiCfg)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -114,7 +116,6 @@ func init() {
 	// Vars that get set at Runtime
 	WorkDir, _ = utils.CreateWorkDir()
 	KindCfg = WorkDir + "/" + "kind.kubeconfig"
-	CapiCfg = WorkDir + "/" + "capi.kubeconfig"
 	// commenting out for now for testing
 	// defer os.RemoveAll(Workdir)
 
