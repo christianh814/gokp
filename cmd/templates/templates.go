@@ -78,6 +78,7 @@ stringData:
 
 var ArgoCdComponetnsApplicationSetKustomize string = `resources:
 - cluster-components.yaml
+- tenants.yaml
 `
 var ArgoCdComponentsArgoProjKustomize string = `resources:
 - cluster.yaml
@@ -119,6 +120,42 @@ spec:
         server: https://kubernetes.default.svc
 `
 
+var ArgoCdTenantApplicationSet string = `
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: tenants
+  namespace: argocd
+spec:
+  generators:
+  - git:
+      repoURL: {{.ClusterGitOpsRepo}}
+      revision: main
+      directories:
+      - path: cluster/tenants/*
+  template:
+    metadata:
+      name: {{.RawPathBasename}}
+    spec:
+      project: cluster
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        retry:
+          limit: 15
+          backoff:
+            duration: 15s
+            factor: 2
+            maxDuration: 5m
+      source:
+        repoURL: {{.ClusterGitOpsRepo}}
+        targetRevision: main
+        path: {{.RawPath}}
+      destination:
+        server: https://kubernetes.default.svc
+`
+
 var ArgoCdComponentsArgoProjProject string = `apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
@@ -135,7 +172,7 @@ spec:
   - '*'
 `
 
-var ArgoCdTenantArgoKustomize string = `apiVersion: kustomize.config.k8s.io/v1beta1
+var ArgoCdArgoKustomize string = `apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 commonAnnotations:
@@ -144,6 +181,75 @@ commonAnnotations:
 
 bases:
 - ../../bootstrap/overlays/default/
+`
+
+var KuardSampleAppDeploy string = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: kuard
+  name: kuard
+  namespace: kuard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kuard
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: kuard
+    spec:
+      containers:
+      - image: gcr.io/kuar-demo/kuard-amd64:blue
+        name: kuard-amd64
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "60m"
+          limits:
+            memory: "64Mi"
+            cpu: "120m"
+`
+
+var KuardSampleAppSvc string = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: kuard
+  name: kuard
+  namespace: kuard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kuard
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: kuard
+    spec:
+      containers:
+      - image: gcr.io/kuar-demo/kuard-amd64:blue
+        name: kuard-amd64
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "60m"
+          limits:
+            memory: "64Mi"
+            cpu: "120m"
+`
+
+var KuardSampleAppNS string = `apiVersion: v1
+kind: Namespace
+metadata:
+  name: kuard
+spec: {}
 `
 
 // CreateRepoSkel creates the skeleton repo structure at the given place
@@ -157,6 +263,7 @@ func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo str
 		repoDir + "/" + "cluster/components/applicationsets/",
 		repoDir + "/" + "cluster/components/argocdproj/",
 		repoDir + "/" + "cluster/core/argocd/",
+		repoDir + "/" + "cluster/tenants/kuard/",
 	}
 
 	// check if the dir is there. If not, error out
@@ -258,7 +365,13 @@ func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo str
 				RawPathBasename:   `'{{path.basename}}'`,
 				RawPath:           `'{{path}}'`,
 			}
+
 			_, err = utils.WriteTemplate(ArgoCdClusterComponentApplicationSet, dir+"/"+"cluster-components.yaml", githubInfo)
+			if err != nil {
+				return false, err
+			}
+
+			_, err = utils.WriteTemplate(ArgoCdTenantApplicationSet, dir+"/"+"tenants.yaml", githubInfo)
 			if err != nil {
 				return false, err
 			}
@@ -288,7 +401,7 @@ func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo str
 
 		}
 
-		//	Tenants
+		//	Core
 		if strings.Contains(dir, "core") && strings.Contains(dir, "argocd") {
 
 			// dummy vars for now
@@ -299,7 +412,35 @@ func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo str
 			}
 
 			// Write out the kustomization file based on the vars and the template
-			_, err := utils.WriteTemplate(ArgoCdTenantArgoKustomize, dir+"/"+"kustomization.yaml", dummyVars)
+			_, err := utils.WriteTemplate(ArgoCdArgoKustomize, dir+"/"+"kustomization.yaml", dummyVars)
+			if err != nil {
+				return false, err
+			}
+
+		}
+		if strings.Contains(dir, "kuard") {
+
+			// dummy vars for now
+			dummyVars := struct {
+				Dummykey string
+			}{
+				Dummykey: "unused",
+			}
+
+			// Write out the deployment file based on the vars and the template
+			_, err := utils.WriteTemplate(KuardSampleAppDeploy, dir+"/"+"kuard-deploy.yaml", dummyVars)
+			if err != nil {
+				return false, err
+			}
+
+			// Write out the deployment file based on the vars and the template
+			_, err = utils.WriteTemplate(KuardSampleAppSvc, dir+"/"+"kuard-service.yaml", dummyVars)
+			if err != nil {
+				return false, err
+			}
+
+			// Write out the deployment file based on the vars and the template
+			_, err = utils.WriteTemplate(KuardSampleAppNS, dir+"/"+"kuard-ns.yaml", dummyVars)
 			if err != nil {
 				return false, err
 			}

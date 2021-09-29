@@ -2,10 +2,8 @@ package capi
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -20,11 +18,15 @@ import (
 	"sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/cloudformation/bootstrap"
 	cloudformation "sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/cloudformation/service"
 	creds "sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/credentials"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1alpha4"
 	capiclient "sigs.k8s.io/cluster-api/cmd/clusterctl/client"
+	kcpv1 "sigs.k8s.io/cluster-api/controlplane/kubeadm/api/v1alpha3"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
@@ -190,18 +192,27 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	for _, yamlFile := range yamlFiles {
 		err = doSSA(context.TODO(), clusterInstallConfig, yamlFile)
 		if err != nil {
-			return false, err
+			log.Warn("Unable to read YAML: ", err)
+			//return false, err
 		}
 	}
 
 	log.Info("CAPI System Configured")
 
 	// Wait for the controlplane to have 3 nodes and that they are initialized
-	//	TODO: this function needs to be converted into client-go
-	_, err = waitForControlPlane(kindkconfig, *clusterName)
+
+	//	First, wait for the infra to appear
+	_, err = waitForAWSInfra(clusterInstallConfig, *clusterName)
 	if err != nil {
 		return false, err
 	}
+
+	//	Then, wait for the CP to appear
+	_, err = waitForCP(clusterInstallConfig, *clusterName)
+	if err != nil {
+		return false, err
+	}
+
 	log.Info("Control Plane Nodes are Online, saving Kubeconfig")
 
 	// Write out CAPI kubeconfig and save it
@@ -250,7 +261,8 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	for _, cniyamlFile := range cniyamlFiles {
 		err = doSSA(context.TODO(), capiInstallConfig, cniyamlFile)
 		if err != nil {
-			return false, err
+			log.Warn("Unable to read YAML: ", err)
+			//return false, err
 		}
 	}
 	log.Info("Successfully installed CNI")
@@ -333,30 +345,84 @@ func doSSA(ctx context.Context, cfg *rest.Config, yaml string) error {
 	return err
 }
 
-// waitForControlPlane waits until the CP returns 3 replicas
-//	TODO: turn this into a capi utils call or use client-go
-func waitForControlPlane(kubeconfig string, clustername string) (bool, error) {
-	cp := 3
-	c := 0
-	for r := 6; c <= r; c++ {
-		if c == r {
-			return false, errors.New("controlplane took too long")
+// waitForAWSInfra waits until the infrastructure is provisioned
+//	TODO: probably should use https://pkg.go.dev/k8s.io/client-go/tools/watch
+func waitForAWSInfra(restConfig *rest.Config, clustername string) (bool, error) {
+	// We need to load the scheme since it's not part of the core API
+	log.Info("Waiting for AWS Infrastructure")
+	scheme := runtime.NewScheme()
+	_ = clusterv1.AddToScheme(scheme)
+
+	c, err := client.New(restConfig, client.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		return false, err
+	}
+
+	// wait up until 40 minutes
+	counter := 0
+	for runs := 20; counter <= runs; counter++ {
+		if counter > runs {
+			return false, errors.New("aws infra did not come up after 40 minutes")
 		}
-		out, err := exec.Command("kubectl", "--kubeconfig", kubeconfig, "kubeadmcontrolplane", clustername+"-control-plane", "-o", "jsonpath='{.status.replicas}'").Output()
-		if err != nil {
-			log.Info(out)
+		// get the current status, wait for "Provisioned"
+		cluster := &clusterv1.Cluster{}
+		if err := c.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: clustername}, cluster); err != nil {
 			return false, err
 		}
-		if string(out) == fmt.Sprint(cp) {
+		if cluster.Status.Phase == "Provisioned" {
 			break
 		}
-		log.Info("Current number of CP: ", out)
-		time.Sleep(30 * time.Second)
+		time.Sleep(2 * time.Minute)
+
 	}
 	return true, nil
 }
 
+// waitForCP waits until the CP to come up
+//	TODO: probably should use https://pkg.go.dev/k8s.io/client-go/tools/watch
+func waitForCP(restConfig *rest.Config, clustername string) (bool, error) {
+	log.Info("Waiting for the Control Plane to appear")
+	// Set the vars we need
+	cpname := clustername + "-control-plane"
+	var expectedCPReplicas int32 = 3
+
+	// We need to load the scheme since it's not part of the core API
+	scheme := runtime.NewScheme()
+	_ = kcpv1.AddToScheme(scheme)
+
+	c, err := client.New(restConfig, client.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		return false, err
+	}
+
+	// wait up until 20 minutes
+	counter := 0
+	for runs := 20; counter <= runs; counter++ {
+		if counter > runs {
+			return false, errors.New("control-plane did not come up after 10 minutes")
+		}
+		// get the current status, wait for 3 CP nodes
+		kcp := &kcpv1.KubeadmControlPlane{}
+		if err := c.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: cpname}, kcp); err != nil {
+			return false, err
+		}
+		if kcp.Status.Replicas == expectedCPReplicas {
+			break
+		}
+
+		time.Sleep(1 * time.Minute)
+
+	}
+
+	return true, nil
+}
+
 // waitForReadyNodes waits until all nodes are in a ready state
+//	TODO: probably should use https://pkg.go.dev/k8s.io/client-go/tools/watch
 func waitForReadyNodes(cfg *rest.Config) (bool, error) {
 	nodesClientSet, err := kubernetes.NewForConfig(cfg)
 	if err != nil {

@@ -107,7 +107,7 @@ require (
 	k8s.io/utils v0.0.0-20210802155522-efc7438f0176 // indirect
 	sigs.k8s.io/cluster-api v0.4.3
 	sigs.k8s.io/cluster-api-provider-aws v0.7.0
-	sigs.k8s.io/controller-runtime v0.9.7 // indirect
+	sigs.k8s.io/controller-runtime v0.9.7
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
@@ -116,6 +116,8 @@ require (
 	github.com/apparentlymart/go-cidr v1.1.0 // indirect
 	github.com/aws/amazon-vpc-cni-k8s v1.9.0 // indirect
 	github.com/awslabs/goformation/v4 v4.19.5 // indirect
+	github.com/coredns/caddy v1.1.0 // indirect
+	github.com/coredns/corefile-migration v1.0.12 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/sanathkr/go-yaml v0.0.0-20170819195128-ed9d249f429b // indirect
 	github.com/sanathkr/yaml v0.0.0-20170819201035-0056894fa522 // indirect
