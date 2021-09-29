@@ -5,6 +5,7 @@ import (
 	kindcmd "sigs.k8s.io/kind/pkg/cmd"
 )
 
+// CreateKindCluster creates KIND cluster to use as the temp cluster manager
 func CreateKindCluster(name string, cfg string) error {
 	klogger := kindcmd.NewLogger()
 	provider := cluster.NewProvider(

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/christianh814/project-spichern/cmd/argo"
 	"github.com/christianh814/project-spichern/cmd/capi"
 	"github.com/christianh814/project-spichern/cmd/github"
 	"github.com/christianh814/project-spichern/cmd/kind"
@@ -15,14 +16,13 @@ var createClusterCmd = &cobra.Command{
 	Use:     "create-cluster",
 	Aliases: []string{"createCluster"},
 	Short:   "Create a GitOps Ready K8S Cluster",
-	Long: `Create a GitOps Ready K8S Cluster using
-KIND + CAPI + Argo CD!
+	Long: `Create a GitOps Ready K8S Cluster using CAPI + Argo CD!
 
-Currenly only AWS with GitHub works.
+Currenly only AWS + GitHub works.
 
 This is a PoC stage (proof of concept) and should NOT
 be used for production. There will be lots of breaking changes
-so beware. There be dragons here.`,
+so beware. There be dragons here. PRE-PRE-ALPHA`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Grab repo related flags
 		ghToken, _ := cmd.Flags().GetString("github-token")
@@ -63,7 +63,6 @@ so beware. There be dragons here.`,
 			"AWS_NODE_MACHINE_TYPE":          awsWMachine,
 		}
 
-		//CHX
 		_, err = capi.CreateAwsK8sInstance(KindCfg, &clusterName, WorkDir, awsCredsMap, CapiCfg)
 		if err != nil {
 			log.Fatal(err)
@@ -82,12 +81,17 @@ so beware. There be dragons here.`,
 		}
 
 		// Export/Create Cluster YAML to the Repo, Make sure kustomize is used for the core components
+		//CHX
 
-		// Git push repo
+		// Git push newly exported YAML to GitOps repo
 
 		// Install Argo CD on the newly created cluster
-
 		// Deploy applications/applicationsets
+		log.Info("Deploying Argo CD GitOps Controller")
+		_, err = argo.BootstrapArgoCD(&clusterName, WorkDir, CapiCfg)
+		if err != nil {
+			log.Fatal(err)
+		}
 
 	},
 }

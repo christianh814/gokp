@@ -143,10 +143,9 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	//	Wait for the deployment to rollout
-	//		TODO: There's probably a better way of doing this.
 	//		We want to wait for "capa-controller-manager" deployment in the "capa-system" ns to
-	//		rollout before we proceed. Sleeping for now
-	//time.Sleep(15 * time.Second)
+	//		rollout before we proceed.
+	//	TODO: We probably want a generic "watch/rollout" function for things
 
 	// Create clientset to check the status
 	clientset, err := kubernetes.NewForConfig(clusterInstallConfig)
@@ -190,7 +189,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	for _, yamlFile := range yamlFiles {
-		err = doSSA(context.TODO(), clusterInstallConfig, yamlFile)
+		err = DoSSA(context.TODO(), clusterInstallConfig, yamlFile)
 		if err != nil {
 			log.Warn("Unable to read YAML: ", err)
 			//return false, err
@@ -259,7 +258,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	for _, cniyamlFile := range cniyamlFiles {
-		err = doSSA(context.TODO(), capiInstallConfig, cniyamlFile)
+		err = DoSSA(context.TODO(), capiInstallConfig, cniyamlFile)
 		if err != nil {
 			log.Warn("Unable to read YAML: ", err)
 			//return false, err
@@ -268,7 +267,6 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	log.Info("Successfully installed CNI")
 
 	// Wait until Nodes are READY
-	//CHX
 	log.Info("Waiting for worker nodes to come online")
 	_, err = waitForReadyNodes(capiInstallConfig)
 	if err != nil {
@@ -285,8 +283,8 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	return true, nil
 }
 
-// doSSA  does service side apply with the given YAML
-func doSSA(ctx context.Context, cfg *rest.Config, yaml string) error {
+// DoSSA  does service side apply with the given YAML
+func DoSSA(ctx context.Context, cfg *rest.Config, yaml string) error {
 	// Read yaml into a slice of byte
 	yml, err := ioutil.ReadFile(yaml)
 	if err != nil {

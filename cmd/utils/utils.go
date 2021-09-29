@@ -23,7 +23,8 @@ func CheckPreReqs() (bool, error) {
 	for _, cli := range cliUtils {
 		_, err := exec.LookPath(cli)
 		if err != nil {
-			return false, err
+			log.Warn("Nonfatal: ", err)
+			//return false, err
 		}
 	}
 	return true, nil
@@ -98,13 +99,14 @@ func SplitYamls(dir string, yaml string, spliton string) error {
 	files := strings.Split(yml, spliton)
 
 	// Split gives us a slice of string. Let's itterate and split them
+
 	for i, file := range files {
 		// create a directory provided to us
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return err
 		}
 		// Create the file and name it based on the index together with the name of the file
-		newYaml, err := os.Create(dir + "/" + fmt.Sprint(i) + "." + filepath.Base(yaml))
+		newYaml, err := os.Create(dir + "/" + fmt.Sprintf("%02d", i) + "." + filepath.Base(yaml))
 		if err != nil {
 			return err
 		}
