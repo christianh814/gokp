@@ -6,8 +6,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/christianh814/project-spichern/cmd/github"
-	"github.com/christianh814/project-spichern/cmd/utils"
+	"github.com/christianh814/gokp/cmd/github"
+	"github.com/christianh814/gokp/cmd/utils"
 )
 
 var ArgoKustomizeFile string = `apiVersion: kustomize.config.k8s.io/v1beta1

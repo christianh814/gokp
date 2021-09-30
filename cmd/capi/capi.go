@@ -13,7 +13,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	cfn "github.com/aws/aws-sdk-go/service/cloudformation"
-	"github.com/christianh814/project-spichern/cmd/utils"
+	"github.com/christianh814/gokp/cmd/utils"
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/cloudformation/bootstrap"
 	cloudformation "sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/cloudformation/service"

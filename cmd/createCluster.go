@@ -3,12 +3,12 @@ package cmd
 import (
 	"os"
 
-	"github.com/christianh814/project-spichern/cmd/argo"
-	"github.com/christianh814/project-spichern/cmd/capi"
-	"github.com/christianh814/project-spichern/cmd/github"
-	"github.com/christianh814/project-spichern/cmd/kind"
-	"github.com/christianh814/project-spichern/cmd/templates"
-	"github.com/christianh814/project-spichern/cmd/utils"
+	"github.com/christianh814/gokp/cmd/argo"
+	"github.com/christianh814/gokp/cmd/capi"
+	"github.com/christianh814/gokp/cmd/github"
+	"github.com/christianh814/gokp/cmd/kind"
+	"github.com/christianh814/gokp/cmd/templates"
+	"github.com/christianh814/gokp/cmd/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )

@@ -1,4 +1,4 @@
-module github.com/christianh814/project-spichern
+module github.com/christianh814/gokp
 
 go 1.17
 

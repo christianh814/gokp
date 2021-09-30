@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/christianh814/project-spichern/cmd/capi"
-	"github.com/christianh814/project-spichern/cmd/utils"
+	"github.com/christianh814/gokp/cmd/capi"
+	"github.com/christianh814/gokp/cmd/utils"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
