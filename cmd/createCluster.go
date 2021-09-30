@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/christianh814/project-spichern/cmd/argo"
 	"github.com/christianh814/project-spichern/cmd/capi"
 	"github.com/christianh814/project-spichern/cmd/github"
@@ -24,6 +26,12 @@ This is a PoC stage (proof of concept) and should NOT
 be used for production. There will be lots of breaking changes
 so beware. There be dragons here. PRE-PRE-ALPHA`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Create workdir and set variables based on that
+		WorkDir, _ = utils.CreateWorkDir()
+		KindCfg = WorkDir + "/" + "kind.kubeconfig"
+		// cleanup workdir at the end
+		defer os.RemoveAll(WorkDir)
+
 		// Grab repo related flags
 		ghToken, _ := cmd.Flags().GetString("github-token")
 		clusterName, _ := cmd.Flags().GetString("cluster-name")
@@ -38,9 +46,10 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 		awsWMachine, _ := cmd.Flags().GetString("aws-node-machine")
 
 		CapiCfg := WorkDir + "/" + clusterName + ".kubeconfig"
+		gokpartifacts := os.Getenv("HOME") + "/.gokp/" + clusterName
 
 		// Run PreReq Checks
-		_, err := utils.CheckPreReqs()
+		_, err := utils.CheckPreReqs(gokpartifacts)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -93,8 +102,41 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 			log.Fatal(err)
 		}
 
-		// Move components to ~/.gokp/<clustername>
+		// Move components to ~/.gokp/<clustername> and remove stuff you don't need to know.
+		// 	TODO: this is ugly and will refactor this later
+		err = utils.CopyDir(WorkDir, gokpartifacts)
+		if err != nil {
+			log.Fatal(err)
+		}
 
+		notNeededDirs := []string{
+			"argocd-install-output",
+			"capi-install-yamls-output",
+			"cni-output",
+		}
+
+		for _, notNeededDir := range notNeededDirs {
+			err = os.RemoveAll(gokpartifacts + "/" + notNeededDir)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
+		notNeededFiles := []string{
+			"argocd-install.yaml",
+			"cni.yaml",
+			"install-cluster.yaml",
+		}
+
+		for _, notNeededFile := range notNeededFiles {
+			err = os.Remove(gokpartifacts + "/" + notNeededFile)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
+		// Give info
+		log.Info("Cluster Successfully installed! Everything you need is under: ~/.gokp/", clusterName)
 	},
 }
 
@@ -118,12 +160,6 @@ func init() {
 	createClusterCmd.MarkFlagRequired("cluster-name")
 	createClusterCmd.MarkFlagRequired("aws-access-key")
 	createClusterCmd.MarkFlagRequired("aws-secret-key")
-
-	// Vars that get set at Runtime
-	WorkDir, _ = utils.CreateWorkDir()
-	KindCfg = WorkDir + "/" + "kind.kubeconfig"
-	// commenting out for now for testing
-	// defer os.RemoveAll(Workdir)
 
 	// Here you will define your flags and configuration settings.
 

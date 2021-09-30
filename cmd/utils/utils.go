@@ -16,7 +16,7 @@ import (
 )
 
 // CheckPreReqs() checks to see if you have the proper CLI tools installed
-func CheckPreReqs() (bool, error) {
+func CheckPreReqs(lastinstalldir string) (bool, error) {
 	// This is the expected cli utils we expect you to haveinstalled
 	log.Info("Running checks")
 	cliUtils := [6]string{"kubectl", "kind", "clusterawsadm", "docker", "clusterctl", "git"}
@@ -26,6 +26,11 @@ func CheckPreReqs() (bool, error) {
 			log.Warn("Nonfatal: ", err)
 			//return false, err
 		}
+	}
+	// Now check for the existance of a previously installed cluster
+	//	NOTE: I do break one of my rules here but this is just a PoC
+	if _, err := os.Stat(lastinstalldir); !os.IsNotExist(err) {
+		log.Fatal("Ooops! Looks like there are stray artifacts found: ", lastinstalldir)
 	}
 	return true, nil
 }
@@ -138,4 +143,79 @@ func DownloadFile(file string, url string) (bool, error) {
 	// Write the body to file
 	_, err = io.Copy(out, r.Body)
 	return false, err
+}
+
+// CopyFile copies one file to another
+func CopyFile(source string, dest string) error {
+	sourcefile, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+
+	defer sourcefile.Close()
+
+	destfile, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+
+	defer destfile.Close()
+
+	_, err = io.Copy(destfile, sourcefile)
+	if err == nil {
+		sourceinfo, err := os.Stat(source)
+		if err != nil {
+			err = os.Chmod(dest, sourceinfo.Mode())
+			if err != nil {
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// CopyDir copies a directory from one place to another
+func CopyDir(source string, dest string) error {
+
+	// get properties of source dir
+	sourceinfo, err := os.Stat(source)
+	if err != nil {
+		return err
+	}
+
+	// create dest dir
+
+	err = os.MkdirAll(dest, sourceinfo.Mode())
+	if err != nil {
+		return err
+	}
+
+	directory, _ := os.Open(source)
+
+	objects, err := directory.Readdir(-1)
+
+	for _, obj := range objects {
+
+		sourcefilepointer := source + "/" + obj.Name()
+
+		destinationfilepointer := dest + "/" + obj.Name()
+
+		if obj.IsDir() {
+			// create sub-directories - recursively
+			err = CopyDir(sourcefilepointer, destinationfilepointer)
+			if err != nil {
+				fmt.Println(err)
+			}
+		} else {
+			// perform copy
+			err = CopyFile(sourcefilepointer, destinationfilepointer)
+			if err != nil {
+				fmt.Println(err)
+			}
+		}
+
+	}
+	return err
 }
