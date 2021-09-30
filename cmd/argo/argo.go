@@ -2,8 +2,10 @@ package argo
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/christianh814/project-spichern/cmd/capi"
 	"github.com/christianh814/project-spichern/cmd/utils"
@@ -48,14 +50,27 @@ func BootstrapArgoCD(clustername *string, workdir string, capicfg string) (bool,
 		return false, err
 	}
 
-	// First, create the namespace
-	//CHX
-
-	for _, argoInstallYaml := range argoInstallYamls {
-		err = capi.DoSSA(context.TODO(), capiInstallConfig, argoInstallYaml)
-		if err != nil {
-			//log.Warn("Unable to read YAML: ", err)
-			return false, err
+	// Loop until all are applied. Set a counter so we don't loop endlessly. Keep track of errors
+	counter := 0
+	for runs := 15; counter <= runs; counter++ {
+		// break if we've tried 15 times (aka 30 seconds)
+		if counter > runs {
+			return false, errors.New("failed to apply argo manifests")
+		}
+		// set the error count
+		errcount := 0
+		// loop through the YAMLS counting the errors
+		for _, argoInstallYaml := range argoInstallYamls {
+			err = capi.DoSSA(context.TODO(), capiInstallConfig, argoInstallYaml)
+			if err != nil {
+				errcount++
+			}
+			// sleep and wait to apply the next one
+			time.Sleep(2 * time.Second)
+		}
+		// If no errors were found, break out of the loop
+		if errcount == 0 {
+			break
 		}
 	}
 

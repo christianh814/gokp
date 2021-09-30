@@ -95,6 +95,7 @@ func CommitAndPush(dir string, token string, msg string) (bool, error) {
 	//Commit
 	_, err = worktree.Commit(msg, &git.CommitOptions{
 		Author: &object.Signature{
+			Name: "gokp-bootstrapper",
 			When: time.Now(),
 		},
 		All: true,

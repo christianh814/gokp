@@ -93,6 +93,8 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 			log.Fatal(err)
 		}
 
+		// Move components to ~/.gokp/<clustername>
+
 	},
 }
 
