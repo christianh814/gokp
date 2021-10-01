@@ -80,6 +80,21 @@ func main() {
 		}
 	}
 
+	// trying api resources
+	//apiresources, err := client.Discovery().ServerResources()
+	// This grabs
+	//apiresources, err := client.Discovery().ServerPreferredNamespacedResources()
+	//apiresources, err := client.Discovery().ServerPreferredResources()
+	apiresources, err := client.Discovery().ServerResources()
+	if err != nil {
+		panic(err)
+	}
+	for _, a := range apiresources {
+		for _, b := range a.APIResources {
+			fmt.Println(b.Name)
+		}
+	}
+
 }
 
 func newClient(kubeConfigPath string) (kubernetes.Interface, error) {
