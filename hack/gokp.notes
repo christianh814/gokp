@@ -1,7 +1,0 @@
-create-cluster \
---cluster-name=chx-test-$RANDOM \
---github-token=$GH_TOKEN \
---private-repo \
---aws-access-key=foo \
---aws-secret-key=bar \
---aws-ssh-key=chernand

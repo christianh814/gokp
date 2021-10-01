@@ -1,0 +1,82 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"os"
+
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/kubectl/pkg/scheme"
+)
+
+func main() {
+	var kubeConfig = flag.String("kubeconfig", "", "kubeconfig file")
+	flag.Parse()
+
+	client, err := newClient(*kubeConfig)
+	if err != nil {
+		fmt.Printf("[ERROR] Failed to create client: %s\n", err)
+		os.Exit(1)
+	}
+
+	namespace := "test"
+	deploymentName := "nginx"
+
+	deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+
+	if errors.IsNotFound(err) {
+		fmt.Printf("Deployment %s in namespace %s not found\n", deploymentName, namespace)
+	} else if err != nil {
+		panic(err.Error())
+	} else {
+		addTypeInformationToObject(deployment)
+		e := json.NewYAMLSerializer(json.DefaultMetaFactory, nil, nil)
+
+		err := e.Encode(deployment, os.Stdout)
+
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+
+}
+
+func newClient(kubeConfigPath string) (kubernetes.Interface, error) {
+	if kubeConfigPath == "" {
+		kubeConfigPath = os.Getenv("KUBECONFIG")
+	}
+	if kubeConfigPath == "" {
+		kubeConfigPath = clientcmd.RecommendedHomeFile // use default path(.kube/config)
+	}
+	kubeConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+	if err != nil {
+		return nil, err
+	}
+	return kubernetes.NewForConfig(kubeConfig)
+}
+
+func addTypeInformationToObject(obj runtime.Object) error {
+	gvks, _, err := scheme.Scheme.ObjectKinds(obj)
+	if err != nil {
+		return fmt.Errorf("missing apiVersion or kind and cannot assign it; %w", err)
+	}
+
+	for _, gvk := range gvks {
+		if len(gvk.Kind) == 0 {
+			continue
+		}
+		if len(gvk.Version) == 0 || gvk.Version == runtime.APIVersionInternal {
+			continue
+		}
+		obj.GetObjectKind().SetGroupVersionKind(gvk)
+		break
+	}
+
+	return nil
+}
