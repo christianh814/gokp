@@ -91,7 +91,7 @@ gokp create-cluster --cluster-name=$MYCLUSER \
 
 > NOTE: The aws ssh key must reference a key you've already uploaded. See [this doc](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/import-key-pair.html) for more info.
 
-This will spin up a temporary control plane, locally, using KIND. Then it will use KIND to install a cluster on on AWS. It will then create a Git repo for the cluster. Once on AWS then the installer will install Argo CD in an opinionated way and then deploy the Git repo it created.
+This will spin up a temporary control plane, locally, using KIND. Then it will use KIND to install a cluster on on AWS. It will then create a Git repo for the cluster. Once the AWS cluster is ready, the installer will install Argo CD in an opinionated way and then deploy the Git repo it created.
 
 You should see something like this:
 
