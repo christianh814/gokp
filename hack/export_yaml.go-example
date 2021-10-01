@@ -16,6 +16,12 @@ import (
 )
 
 func main() {
+	file, err := os.Create("/tmp/chx.yaml")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
 	var kubeConfig = flag.String("kubeconfig", "", "kubeconfig file")
 	flag.Parse()
 
@@ -29,6 +35,35 @@ func main() {
 	deploymentName := "nginx"
 
 	deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+	//chx trying to clean stuff up
+	deployment.SetResourceVersion("")
+	deployment.SetUID("")
+	deployment.SetAnnotations(map[string]string{})
+	deployment.CreationTimestamp.Reset()
+	deployment.SetSelfLink("")
+	deployment.SetManagedFields([]metav1.ManagedFieldsEntry{})
+	deployment.SetFinalizers([]string{})
+	deployment.SetOwnerReferences([]metav1.OwnerReference{})
+	deployment.SetGeneration(0)
+	deployment.Status.Reset()
+
+	// other stuff we may not want. This is specific for deployments though. The above
+	// is the "generic" way based on my "export" plugin https://gist.github.com/christianh814/41e65c6e5519af34da0efda970bca70e
+	deployment.Spec.Strategy.Reset()
+	deployment.Spec.ProgressDeadlineSeconds = nil
+	deployment.Spec.RevisionHistoryLimit = nil
+
+	// scorched earth
+	//deployment.Reset()
+
+	// In case you want to keep specific annotations, there is this
+	/*
+		for k := range deployment.Annotations {
+			delete(deployment.Annotations, k)
+		}
+	*/
+
+	///
 
 	if errors.IsNotFound(err) {
 		fmt.Printf("Deployment %s in namespace %s not found\n", deploymentName, namespace)
@@ -38,7 +73,7 @@ func main() {
 		addTypeInformationToObject(deployment)
 		e := json.NewYAMLSerializer(json.DefaultMetaFactory, nil, nil)
 
-		err := e.Encode(deployment, os.Stdout)
+		err := e.Encode(deployment, file)
 
 		if err != nil {
 			panic(err.Error())
