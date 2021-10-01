@@ -47,7 +47,7 @@ The following aren't needed, but are nice to have
 
 __More Info__
 
-For more information around the Prereqs, please see the documentation for [KIND](https://kind.sigs.k8s.io/) and [CAPI](https://cluster-api.sigs.k8s.io/).
+For more information around the Prereqs, please see the documentation for [KIND](https://kind.sigs.k8s.io/) and [CAPI](https://cluster-api.sigs.k8s.io/). IAM info can be found [HERE](https://cluster-api-aws.sigs.k8s.io/topics/iam-permissions.html#ec2-provisioned-kubernetes-clusters)
 
 # Testing
 
