@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -36,6 +37,7 @@ func main() {
 
 	deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 	//chx trying to clean stuff up
+	// This can probably be a function
 	deployment.SetResourceVersion("")
 	deployment.SetUID("")
 	deployment.SetAnnotations(map[string]string{})
@@ -45,6 +47,7 @@ func main() {
 	deployment.SetFinalizers([]string{})
 	deployment.SetOwnerReferences([]metav1.OwnerReference{})
 	deployment.SetGeneration(0)
+
 	deployment.Status.Reset()
 
 	// other stuff we may not want. This is specific for deployments though. The above
@@ -80,11 +83,99 @@ func main() {
 		}
 	}
 
-	// trying api resources
+	// teseting namespace
+	// get list of namespaces
+	ns, _ := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	// range over them
+	for i, n := range ns.Items {
+		thens, err := client.CoreV1().Namespaces().Get(context.TODO(), n.Name, metav1.GetOptions{})
+		if err != nil {
+			panic(err)
+		}
+		// create file
+		tf, err := os.Create("/tmp/" + fmt.Sprint(i) + ".ns.yaml")
+		if err != nil {
+			panic(err)
+		}
+		defer tf.Close()
+		// strip off the things you don't need from the ns
+		thens.SetResourceVersion("")
+		thens.SetUID("")
+		thens.SetAnnotations(map[string]string{})
+		thens.CreationTimestamp.Reset()
+		thens.SetSelfLink("")
+		thens.SetManagedFields([]metav1.ManagedFieldsEntry{})
+		thens.SetFinalizers([]string{})
+		thens.SetOwnerReferences([]metav1.OwnerReference{})
+		thens.SetGeneration(0)
+		thens.Status.Reset()
+		// take the ns and write the file
+		addTypeInformationToObject(thens)
+		e := json.NewYAMLSerializer(json.DefaultMetaFactory, nil, nil)
+
+		err = e.Encode(thens, tf)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+
+	/* start API resources */
+
+	// if it's namespaced or not
+	isNamespaced := false
+
+	// grab the resource list from the cluster
+	apiresources, err := client.Discovery().ServerPreferredResources()
+	if err != nil {
+		panic(err)
+	}
+
+	// from here on down, it's mostly copy/paste from
+	// 	https://github.com/kubernetes/kubectl/blob/master/pkg/cmd/apiresources/apiresources.go#L142
+	type groupResource struct {
+		APIGroup        string
+		APIGroupVersion string
+		APIResource     metav1.APIResource
+	}
+
+	resources := []groupResource{}
+
+	for _, list := range apiresources {
+		if len(list.APIResources) == 0 {
+			continue
+		}
+
+		gv, err := schema.ParseGroupVersion(list.GroupVersion)
+		if err != nil {
+			continue
+		}
+
+		for _, resource := range list.APIResources {
+			if len(resource.Verbs) == 0 {
+				continue
+			}
+			// filter namespaced
+			if isNamespaced != resource.Namespaced {
+				continue
+			}
+			// filter to resources that support the specified verbs
+			resources = append(resources, groupResource{
+				APIGroup:        gv.Group,
+				APIGroupVersion: gv.String(),
+				APIResource:     resource,
+			})
+		}
+
+	}
+
+	for _, r := range resources {
+		fmt.Println(r.APIResource.Name)
+	}
+
 	//apiresources, err := client.Discovery().ServerResources()
-	// This grabs
 	//apiresources, err := client.Discovery().ServerPreferredNamespacedResources()
 	//apiresources, err := client.Discovery().ServerPreferredResources()
+	/* OLD
 	apiresources, err := client.Discovery().ServerResources()
 	if err != nil {
 		panic(err)
@@ -94,6 +185,8 @@ func main() {
 			fmt.Println(b.Name)
 		}
 	}
+	*/
+	/* end */
 
 }
 
@@ -130,3 +223,20 @@ func addTypeInformationToObject(obj runtime.Object) error {
 
 	return nil
 }
+
+/* can't make this work right now
+func makeGeneric(obj metav1.ObjectMeta) metav1.ObjectMeta {
+	obj.SetResourceVersion("")
+	obj.SetUID("")
+	obj.SetAnnotations(map[string]string{})
+	obj.CreationTimestamp.Reset()
+	obj.SetSelfLink("")
+	obj.SetManagedFields([]metav1.ManagedFieldsEntry{})
+	obj.SetFinalizers([]string{})
+	obj.SetOwnerReferences([]metav1.OwnerReference{})
+	obj.SetGeneration(0)
+	// status is it's own thing?
+	obj.Status.Reset()
+	return obj
+}
+*/
