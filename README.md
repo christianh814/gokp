@@ -53,7 +53,7 @@ For more information around the Prereqs, please see the documentation for [KIND]
 
 I've hand tested this on Ubuntu 21.04, Fedora 34, and Mac OS X Big Sur (11.6) all on X86_64.
 
-I currently don't have any binaries, so you will need to install this via golang (I'm using 1.17.1)o
+I currently don't have any binaries, so you will need to install this via golang (I'm using 1.17.1):
 
 ```shell
 go install github.com/christianh814/gokp
