@@ -120,6 +120,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/sanathkr/go-yaml v0.0.0-20170819195128-ed9d249f429b // indirect
 	github.com/sanathkr/yaml v0.0.0-20170819201035-0056894fa522 // indirect
+	k8s.io/kubectl v0.21.4
 	sigs.k8s.io/kustomize/api v0.10.0
 	sigs.k8s.io/kustomize/kyaml v0.12.0
 )
