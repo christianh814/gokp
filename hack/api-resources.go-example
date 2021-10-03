@@ -1,0 +1,90 @@
+package main
+
+import (
+	"fmt"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+)
+
+type GroupResource struct {
+	APIGroup        string
+	APIGroupVersion string
+	APIResource     metav1.APIResource
+}
+
+func main() {
+	// Setup K8S Client
+	kubeconfigpath := "/Users/chernand/.kube/config"
+	client, _ := clientcmd.BuildConfigFromFlags("", kubeconfigpath)
+
+	// get the K8S API Resources
+	namespaced := false
+	apires, err := getApiResources(client, namespaced)
+	if err != nil {
+		panic(err)
+	}
+
+	//loop through them
+	for _, a := range apires {
+		fmt.Println(a)
+	}
+
+	// wish list FUNCTION TO EXPORT TO YAML
+	// exportpath := "/Users/chernand/mycluster"
+	//exportResourceToYaml(a, exportpath)
+
+}
+
+func getApiResources(client *rest.Config, namespaced bool) ([]GroupResource, error) {
+	k, err := kubernetes.NewForConfig(client)
+	if err != nil {
+		return nil, err
+	}
+
+	ar, err := k.Discovery().ServerPreferredResources()
+	if err != nil {
+		return nil, err
+	}
+
+	//
+
+	resources := []GroupResource{}
+
+	for _, list := range ar {
+		if len(list.APIResources) == 0 {
+			continue
+		}
+
+		gv, err := schema.ParseGroupVersion(list.GroupVersion)
+		if err != nil {
+			continue
+		}
+
+		for _, resource := range list.APIResources {
+			if len(resource.Verbs) == 0 {
+				continue
+			}
+			// filter namespaced
+			if namespaced != resource.Namespaced {
+				continue
+			}
+			// filter to resources that support the specified verbs
+			resources = append(resources, GroupResource{
+				APIGroup:        gv.Group,
+				APIGroupVersion: gv.String(),
+				APIResource:     resource,
+			})
+		}
+
+	}
+
+	return resources, nil
+}
+
+func exportResourceToYaml() bool {
+	return true
+}

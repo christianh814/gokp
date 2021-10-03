@@ -1,6 +1,10 @@
 // maybe this package isn't needed
 package export
 
-type Foo struct {
-	Bar string
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+type K8SObject struct {
+	Obj metav1.ObjectMeta
 }
