@@ -51,6 +51,10 @@ func main() {
 	}
 	//loop through them
 	for _, a := range apires {
+		if a.APIResource.Name == "componentstatuses" || a.APIResource.Name == "namespaces" || a.APIResource.Name == "certificatesigningrequests" {
+			continue
+		}
+		//fmt.Println("--- ", a.APIResource.Name)
 		exportResourceToYaml(dynamicClient, a, e)
 	}
 
@@ -120,18 +124,13 @@ func getApiResources(k kubernetes.Interface, namespaced bool) ([]GroupResource, 
 }
 func exportResourceToYaml(client dynamic.Interface, gr GroupResource, e *json.Serializer) bool {
 	fmt.Printf(fmt.Sprintf("Querying for %s in %s group\n", gr.APIResource.Name, gr.APIGroupVersion))
-	list, err := client.Resource(schema.GroupVersionResource{Group: gr.APIGroup, Resource: gr.APIResource.Name, Version: gr.APIGroupVersion}).List(context.TODO(), metav1.ListOptions{})
+	//list, err := client.Resource(schema.GroupVersionResource{Group: gr.APIGroup, Resource: gr.APIResource.Name, Version: gr.APIGroupVersion}).List(context.TODO(), metav1.ListOptions{})
+	list, err := client.Resource(schema.GroupVersionResource{Group: gr.APIGroup, Resource: gr.APIResource.Name, Version: gr.APIVersion}).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return false
 	}
 
 	for _, listItem := range list.Items {
-		if strings.ToLower(listItem.GetKind()) == "componentstatus" || strings.ToLower(listItem.GetKind()) == "namespace" || strings.ToLower(listItem.GetKind()) == "certificatesigningrequest" {
-			fmt.Println("SKIPPING: ", listItem.GetKind())
-			continue
-		}
-
-		//listItem.SetGroupVersionKind(schema.GroupVersionKind{Group: gr.APIResource.Group, Kind: gr.APIResource.Kind, Version: gr.APIResource.Version})
 		listItem.SetGroupVersionKind(schema.GroupVersionKind{Group: gr.APIResource.Group, Kind: gr.APIResource.Kind, Version: gr.APIVersion})
 		metadata := listItem.Object["metadata"].(map[string]interface{})
 
@@ -149,8 +148,7 @@ func exportResourceToYaml(client dynamic.Interface, gr GroupResource, e *json.Se
 
 		obj := listItem.DeepCopyObject()
 
-		fileName := fmt.Sprintf("%s-%s", strings.ToLower(listItem.GetKind()), strings.ToLower(listItem.GetName()))
-		//fileName := fmt.Sprintf("%s-%s", strings.ToLower(listItem.GetKind()), strings.ToLower(listItem.GetName()))
+		fileName := fmt.Sprintf("%s-%s", strings.ReplaceAll(strings.ToLower(listItem.GetKind()), ":", ""), strings.ReplaceAll(strings.ToLower(listItem.GetName()), ":", "-"))
 		y, err := os.Create("/tmp/test/" + fileName + ".yaml")
 		if err != nil {
 			panic(err)
