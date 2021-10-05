@@ -5,6 +5,7 @@ import (
 
 	"github.com/christianh814/gokp/cmd/argo"
 	"github.com/christianh814/gokp/cmd/capi"
+	"github.com/christianh814/gokp/cmd/export"
 
 	//"github.com/christianh814/gokp/cmd/export"
 	"github.com/christianh814/gokp/cmd/github"
@@ -93,13 +94,11 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 
 		// Export/Create Cluster YAML to the Repo, Make sure kustomize is used for the core components
 		//CHX
-		/* Not ready yet :(
 		log.Info("Exporting Cluster YAML")
 		_, err = export.ExportClusterYaml(CapiCfg, WorkDir+"/"+clusterName)
 		if err != nil {
 			log.Fatal(err)
 		}
-		*/
 
 		// Git push newly exported YAML to GitOps repo
 

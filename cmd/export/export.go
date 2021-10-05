@@ -7,231 +7,104 @@ import (
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubectl/pkg/scheme"
 )
 
 // ExportClusterYaml exports the given clusters YAML into the directory
 func ExportClusterYaml(capicfg string, repodir string) (bool, error) {
-	// Set up client to pass into the functions
-	client, err := clientcmd.BuildConfigFromFlags("", capicfg)
+	//Create client and dynamtic client
+	client, err := newClient(capicfg)
 	if err != nil {
 		return false, err
 	}
 
-	// export cluster scoped YAML into the given directory
-	// set and create the repodir for the cluser scoped things
-	exportClusterDir := repodir + "/" + "core" + "/" + "cluster"
-	err = os.MkdirAll(repodir, 0755)
+	dynamicClient, err := newDynamicClient(capicfg)
 	if err != nil {
 		return false, err
 	}
 
-	_, err = exportClusterScopedYaml(client, exportClusterDir)
+	// Create a YAML serializer
+	e := json.NewYAMLSerializer(json.DefaultMetaFactory, nil, nil)
+
+	// First get the cluster scoped api resources
+	isNamespaced := false
+	clusterApiResouces, err := getApiResources(client, isNamespaced)
 	if err != nil {
 		return false, err
 	}
+
+	// Loop through the cluster scoped API resources and export them to <repodir>/<clustername>/core/cluster dir
+	for _, car := range clusterApiResouces {
+		if car.APIResource.Name == "componentstatuses" || car.APIResource.Name == "namespaces" || car.APIResource.Name == "certificatesigningrequests" || car.APIResource.Name == "podsecuritypolicies" {
+			continue
+		}
+		// export the yaml
+		_, err = exportClusterScopedYaml(dynamicClient, car, e, repodir+"/core"+"/cluster")
+		if err != nil {
+			return false, err
+		}
+	}
+
+	// Export namespaced scoped api resources
+	//CHX
 
 	// If we're here we should be okay
 	return true, nil
 }
 
 // exportClusterScopedYaml exports all the cluster scoped yaml into the given directory
-func exportClusterScopedYaml(client *rest.Config, repodir string) (bool, error) {
-	// Let's set up the client
-	c, err := kubernetes.NewForConfig(client)
+func exportClusterScopedYaml(client dynamic.Interface, gr GroupResource, e *json.Serializer, dir string) (bool, error) {
+	//fmt.Printf(fmt.Sprintf("Querying for %s in %s group\n", gr.APIResource.Name, gr.APIGroupVersion))
+	//list, err := client.Resource(schema.GroupVersionResource{Group: gr.APIGroup, Resource: gr.APIResource.Name, Version: gr.APIGroupVersion}).List(context.TODO(), metav1.ListOptions{})
+	list, err := client.Resource(schema.GroupVersionResource{Group: gr.APIGroup, Resource: gr.APIResource.Name, Version: gr.APIVersion}).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return false, err
 	}
 
-	// First we get the NODES. Loop through each node
-	nodes, _ := c.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-	for _, node := range nodes.Items {
-		// If we get nothing then don't bother, go to the next one
-		if len(node.Name) == 0 {
-			continue
-		}
+	os.MkdirAll(dir, 0755)
 
-		// Get the config for a specific node
-		nd, err := c.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+	for _, listItem := range list.Items {
+		listItem.SetGroupVersionKind(schema.GroupVersionKind{Group: gr.APIResource.Group, Kind: gr.APIResource.Kind, Version: gr.APIVersion})
+		metadata := listItem.Object["metadata"].(map[string]interface{})
+
+		// "Generalize" YAML
+		delete(metadata, "resourceVersion")
+		delete(metadata, "uid")
+		delete(metadata, "annotations")
+		delete(metadata, "creationTimestamp")
+		delete(metadata, "selfLink")
+		delete(metadata, "managedFields")
+		delete(metadata, "finalizers")
+		delete(metadata, "ownerReferences")
+		delete(metadata, "generation")
+		delete(listItem.Object, "status")
+
+		obj := listItem.DeepCopyObject()
+
+		fileName := fmt.Sprintf("%s-%s", strings.ReplaceAll(strings.ToLower(listItem.GetKind()), ":", "-"), strings.ReplaceAll(strings.ToLower(listItem.GetName()), ":", "-"))
+		y, err := os.Create(dir + "/" + fileName + ".yaml")
 		if err != nil {
 			return false, err
 		}
-		//create the file
-		y, err := os.Create(repodir + "/" + "node-" + strings.ReplaceAll(nd.Name, ":", "-") + ".yaml")
+		defer y.Close()
+
+		err = addTypeInformationToObject(obj)
 		if err != nil {
 			return false, err
 		}
 
-		// Make the YAML generic to store
-		nd.SetResourceVersion("")
-		nd.SetUID("")
-		nd.SetAnnotations(map[string]string{})
-		nd.CreationTimestamp.Reset()
-		nd.SetSelfLink("")
-		nd.SetManagedFields([]metav1.ManagedFieldsEntry{})
-		nd.SetFinalizers([]string{})
-		nd.SetOwnerReferences([]metav1.OwnerReference{})
-		nd.SetGeneration(0)
-		nd.Status.Reset()
-
-		// take the node and write the file, first adding any
-		// missing object information
-		addTypeInformationToObject(nd)
-		e := json.NewYAMLSerializer(json.DefaultMetaFactory, nil, nil)
-
-		err = e.Encode(nd, y)
+		err = e.Encode(obj, y)
 		if err != nil {
 			return false, err
 		}
-		// close the file
-		y.Close()
 
 	}
-	// - END NODES -
-
-	// We get the PVS. Loop through each PV
-	pvs, _ := c.CoreV1().PersistentVolumes().List(context.TODO(), metav1.ListOptions{})
-	for _, pv := range pvs.Items {
-		// If we get nothing then don't bother, go to the next one
-		if len(pv.Name) == 0 {
-			continue
-		}
-
-		// Get the config for a specific pv
-		p, err := c.CoreV1().PersistentVolumes().Get(context.TODO(), pv.Name, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-		//create the file
-		y, err := os.Create(repodir + "/" + "pv-" + strings.ReplaceAll(p.Name, ":", "-") + ".yaml")
-		if err != nil {
-			return false, err
-		}
-
-		// Make the YAML generic to store
-		p.SetResourceVersion("")
-		p.SetUID("")
-		p.SetAnnotations(map[string]string{})
-		p.CreationTimestamp.Reset()
-		p.SetSelfLink("")
-		p.SetManagedFields([]metav1.ManagedFieldsEntry{})
-		p.SetFinalizers([]string{})
-		p.SetOwnerReferences([]metav1.OwnerReference{})
-		p.SetGeneration(0)
-		p.Status.Reset()
-
-		// take the node and write the file, first adding any
-		// missing object information
-		addTypeInformationToObject(p)
-		e := json.NewYAMLSerializer(json.DefaultMetaFactory, nil, nil)
-
-		err = e.Encode(p, y)
-		if err != nil {
-			return false, err
-		}
-		// close the file
-		y.Close()
-
-	}
-	// - END PVS -
-
-	// We get the Mutating Webhooks. Loop through each MW
-	mws, _ := c.AdmissionregistrationV1().MutatingWebhookConfigurations().List(context.TODO(), metav1.ListOptions{})
-	for _, mw := range mws.Items {
-		// If we get nothing then don't bother, go to the next one
-		if len(mw.Name) == 0 {
-			continue
-		}
-
-		// Get the config for a specific pv
-		m, err := c.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.TODO(), mw.Name, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-		//create the file
-		y, err := os.Create(repodir + "/" + "pv-" + strings.ReplaceAll(m.Name, ":", "-") + ".yaml")
-		if err != nil {
-			return false, err
-		}
-
-		// Make the YAML generic to store
-		m.SetResourceVersion("")
-		m.SetUID("")
-		m.SetAnnotations(map[string]string{})
-		m.CreationTimestamp.Reset()
-		m.SetSelfLink("")
-		m.SetManagedFields([]metav1.ManagedFieldsEntry{})
-		m.SetFinalizers([]string{})
-		m.SetOwnerReferences([]metav1.OwnerReference{})
-		m.SetGeneration(0)
-
-		// take the node and write the file, first adding any
-		// missing object information
-		addTypeInformationToObject(m)
-		e := json.NewYAMLSerializer(json.DefaultMetaFactory, nil, nil)
-
-		err = e.Encode(m, y)
-		if err != nil {
-			return false, err
-		}
-		// close the file
-		y.Close()
-
-	}
-	// - END MWS -
-
-	// We get the validatingwebhookconfigurations loop through each
-	vwc, _ := c.AdmissionregistrationV1().ValidatingWebhookConfigurations().List(context.TODO(), metav1.ListOptions{})
-	for _, vw := range vwc.Items {
-		// If we get nothing then don't bother, go to the next one
-		if len(vw.Name) == 0 {
-			continue
-		}
-
-		// Get the config for a specific vw
-		v, err := c.AdmissionregistrationV1().ValidatingWebhookConfigurations().Get(context.TODO(), vw.Name, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-		//create the file
-		y, err := os.Create(repodir + "/" + "vwc-" + strings.ReplaceAll(v.Name, ":", "-") + ".yaml")
-		if err != nil {
-			return false, err
-		}
-
-		// Make the YAML generic to store
-		v.SetResourceVersion("")
-		v.SetUID("")
-		v.SetAnnotations(map[string]string{})
-		v.CreationTimestamp.Reset()
-		v.SetSelfLink("")
-		v.SetManagedFields([]metav1.ManagedFieldsEntry{})
-		v.SetFinalizers([]string{})
-		v.SetOwnerReferences([]metav1.OwnerReference{})
-		v.SetGeneration(0)
-
-		// take the node and write the file, first adding any
-		// missing object information
-		addTypeInformationToObject(v)
-		e := json.NewYAMLSerializer(json.DefaultMetaFactory, nil, nil)
-
-		err = e.Encode(v, y)
-		if err != nil {
-			return false, err
-		}
-		// close the file
-		y.Close()
-
-	}
-	// - END VWS -
-
-	// If we're here we should be okay
 	return true, nil
 }
 
@@ -254,4 +127,60 @@ func addTypeInformationToObject(obj runtime.Object) error {
 	}
 
 	return nil
+}
+
+// newClient returns a kubernetes interface type
+func newClient(kubeConfigPath string) (kubernetes.Interface, error) {
+	// build the client and return it
+	kubeConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+	if err != nil {
+		return nil, err
+	}
+	return kubernetes.NewForConfig(kubeConfig)
+}
+
+// newDynamicClient returns a dyamnic kubernetes interface
+func newDynamicClient(kubeConfigPath string) (dynamic.Interface, error) {
+	// build the dynamic client and return it
+	kubeConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+	if err != nil {
+		return nil, err
+	}
+	return dynamic.NewForConfig(kubeConfig)
+}
+
+// getApiResources returns a []GroupResource and an err
+func getApiResources(k kubernetes.Interface, namespaced bool) ([]GroupResource, error) {
+	ar, err := k.Discovery().ServerPreferredResources()
+	if err != nil {
+		return nil, err
+	}
+	//
+	resources := []GroupResource{}
+	for _, list := range ar {
+		if len(list.APIResources) == 0 {
+			continue
+		}
+		gv, err := schema.ParseGroupVersion(list.GroupVersion)
+		if err != nil {
+			continue
+		}
+		for _, resource := range list.APIResources {
+			if len(resource.Verbs) == 0 {
+				continue
+			}
+			// filter namespaced
+			if namespaced != resource.Namespaced {
+				continue
+			}
+			// filter to resources that support the specified verbs
+			resources = append(resources, GroupResource{
+				APIGroup:        gv.Group,
+				APIGroupVersion: gv.String(),
+				APIVersion:      gv.Version,
+				APIResource:     resource,
+			})
+		}
+	}
+	return resources, nil
 }
