@@ -101,6 +101,10 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 		}
 
 		// Git push newly exported YAML to GitOps repo
+		_, err = github.CommitAndPush(WorkDir+"/"+clusterName, ghToken, "exporting existing YAML")
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		// Install Argo CD on the newly created cluster
 		// Deploy applications/applicationsets

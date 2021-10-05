@@ -118,7 +118,7 @@ func CommitAndPush(dir string, token string, msg string) (bool, error) {
 	}
 
 	// If we're here, we should be good
-	log.Info("Successfully pushed initial commit")
+	log.Info("Successfully pushed commit")
 
 	return true, nil
 }
