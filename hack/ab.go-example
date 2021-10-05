@@ -1,0 +1,192 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/kubectl/pkg/scheme"
+)
+
+type GroupResource struct {
+	APIGroup        string
+	APIGroupVersion string
+	APIVersion      string
+	APIResource     metav1.APIResource
+}
+
+func main() {
+	// Setup K8S Client
+	var kubeConfig = flag.String("kubeconfig", "", "kubeconfig file")
+	flag.Parse()
+
+	client, err := newClient(*kubeConfig)
+	if err != nil {
+		fmt.Printf("[ERROR] Failed to create client: %s\n", err)
+		os.Exit(1)
+	}
+
+	dynamicClient, err := newDynamicClient(*kubeConfig)
+	if err != nil {
+		fmt.Printf("[ERROR] Failed to create client: %s\n", err)
+		os.Exit(1)
+	}
+
+	e := json.NewYAMLSerializer(json.DefaultMetaFactory, nil, nil)
+
+	// get the K8S API Resources
+	namespaced := false
+	apires, err := getApiResources(client, namespaced)
+	if err != nil {
+		panic(err)
+	}
+	//loop through them
+	for _, a := range apires {
+		exportResourceToYaml(dynamicClient, a, e)
+	}
+
+}
+
+func newClient(kubeConfigPath string) (kubernetes.Interface, error) {
+	if kubeConfigPath == "" {
+		kubeConfigPath = os.Getenv("KUBECONFIG")
+	}
+	if kubeConfigPath == "" {
+		kubeConfigPath = clientcmd.RecommendedHomeFile // use default path(.kube/config)
+	}
+	kubeConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+	if err != nil {
+		return nil, err
+	}
+	return kubernetes.NewForConfig(kubeConfig)
+}
+
+func newDynamicClient(kubeConfigPath string) (dynamic.Interface, error) {
+	if kubeConfigPath == "" {
+		kubeConfigPath = os.Getenv("KUBECONFIG")
+	}
+	if kubeConfigPath == "" {
+		kubeConfigPath = clientcmd.RecommendedHomeFile // use default path(.kube/config)
+	}
+	kubeConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+	if err != nil {
+		return nil, err
+	}
+	return dynamic.NewForConfig(kubeConfig)
+}
+
+func getApiResources(k kubernetes.Interface, namespaced bool) ([]GroupResource, error) {
+	ar, err := k.Discovery().ServerPreferredResources()
+	if err != nil {
+		return nil, err
+	}
+	//
+	resources := []GroupResource{}
+	for _, list := range ar {
+		if len(list.APIResources) == 0 {
+			continue
+		}
+		gv, err := schema.ParseGroupVersion(list.GroupVersion)
+		if err != nil {
+			continue
+		}
+		for _, resource := range list.APIResources {
+			if len(resource.Verbs) == 0 {
+				continue
+			}
+			// filter namespaced
+			if namespaced != resource.Namespaced {
+				continue
+			}
+			// filter to resources that support the specified verbs
+			resources = append(resources, GroupResource{
+				APIGroup:        gv.Group,
+				APIGroupVersion: gv.String(),
+				APIVersion:      gv.Version,
+				APIResource:     resource,
+			})
+		}
+	}
+	return resources, nil
+}
+func exportResourceToYaml(client dynamic.Interface, gr GroupResource, e *json.Serializer) bool {
+	fmt.Printf(fmt.Sprintf("Querying for %s in %s group\n", gr.APIResource.Name, gr.APIGroupVersion))
+	list, err := client.Resource(schema.GroupVersionResource{Group: gr.APIGroup, Resource: gr.APIResource.Name, Version: gr.APIGroupVersion}).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return false
+	}
+
+	for _, listItem := range list.Items {
+		if strings.ToLower(listItem.GetKind()) == "componentstatus" || strings.ToLower(listItem.GetKind()) == "namespace" || strings.ToLower(listItem.GetKind()) == "certificatesigningrequest" {
+			fmt.Println("SKIPPING: ", listItem.GetKind())
+			continue
+		}
+
+		//listItem.SetGroupVersionKind(schema.GroupVersionKind{Group: gr.APIResource.Group, Kind: gr.APIResource.Kind, Version: gr.APIResource.Version})
+		listItem.SetGroupVersionKind(schema.GroupVersionKind{Group: gr.APIResource.Group, Kind: gr.APIResource.Kind, Version: gr.APIVersion})
+		metadata := listItem.Object["metadata"].(map[string]interface{})
+
+		// "Generalize" YAML
+		delete(metadata, "resourceVersion")
+		delete(metadata, "uid")
+		delete(metadata, "annotations")
+		delete(metadata, "creationTimestamp")
+		delete(metadata, "selfLink")
+		delete(metadata, "managedFields")
+		delete(metadata, "finalizers")
+		delete(metadata, "ownerReferences")
+		delete(metadata, "generation")
+		delete(listItem.Object, "status")
+
+		obj := listItem.DeepCopyObject()
+
+		fileName := fmt.Sprintf("%s-%s", strings.ToLower(listItem.GetKind()), strings.ToLower(listItem.GetName()))
+		//fileName := fmt.Sprintf("%s-%s", strings.ToLower(listItem.GetKind()), strings.ToLower(listItem.GetName()))
+		y, err := os.Create("/tmp/test/" + fileName + ".yaml")
+		if err != nil {
+			panic(err)
+		}
+		defer y.Close()
+
+		err = addTypeInformationToObject(obj)
+		if err != nil {
+			panic(err.Error())
+		}
+
+		err = e.Encode(obj, y)
+		if err != nil {
+			panic(err.Error())
+		}
+
+	}
+	return true
+}
+
+func addTypeInformationToObject(obj runtime.Object) error {
+	gvks, _, err := scheme.Scheme.ObjectKinds(obj)
+	if err != nil {
+		return fmt.Errorf("missing apiVersion or kind and cannot assign it; %w", err)
+	}
+
+	for _, gvk := range gvks {
+		if len(gvk.Kind) == 0 {
+			continue
+		}
+		if len(gvk.Version) == 0 || gvk.Version == runtime.APIVersionInternal {
+			continue
+		}
+		obj.GetObjectKind().SetGroupVersionKind(gvk)
+		break
+	}
+
+	return nil
+}
