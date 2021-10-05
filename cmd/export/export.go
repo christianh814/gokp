@@ -50,18 +50,26 @@ func ExportClusterYaml(capicfg string, repodir string) (bool, error) {
 
 	// Loop through the cluster scoped API resources and export them to <repodir>/core/cluster dir
 	for _, car := range clusterApiResouces {
-		if car.APIResource.Name == "componentstatuses" || car.APIResource.Name == "namespaces" || car.APIResource.Name == "certificatesigningrequests" || car.APIResource.Name == "podsecuritypolicies" {
+		// Skip over things we won't or can't export
+		if car.APIResource.Name == "componentstatuses" ||
+			car.APIResource.Name == "namespaces" ||
+			car.APIResource.Name == "certificatesigningrequests" ||
+			car.APIResource.Name == "tokenreviews" ||
+			car.APIResource.Name == "selfsubjectaccessreviews" ||
+			car.APIResource.Name == "selfsubjectrulesreviews" ||
+			car.APIResource.Name == "subjectaccessreviews" ||
+			car.APIResource.Name == "podsecuritypolicies" {
 			continue
 		}
 		// export the yaml
-		_, err = exportClusterScopedYaml(dynamicClient, car, e, repodir+"/cluster"+"/core")
+		_, err = exportClusterScopedYaml(dynamicClient, car, e, repodir+"/cluster"+"/core/cluster")
 		if err != nil {
 			return false, err
 		}
 	}
 
 	// Create kustomize file based on the YAMLs created
-	dirGlob := repodir + "/cluster" + "/core/*.yaml"
+	dirGlob := repodir + "/cluster" + "/core/cluster/*.yaml"
 	clusterScopedYamlFiles, err := filepath.Glob(dirGlob)
 	if err != nil {
 		return false, err
@@ -78,7 +86,7 @@ func ExportClusterYaml(capicfg string, repodir string) (bool, error) {
 	}{
 		ClusterScopedYamls: clusterScopedYamlFiles,
 	}
-	_, err = WriteTemplateWithFunc(ClusterScopedKustomizeFile, repodir+"/cluster/core/kustomization.yaml", cskf, FuncMap)
+	_, err = WriteTemplateWithFunc(ClusterScopedKustomizeFile, repodir+"/cluster/core/cluster/kustomization.yaml", cskf, FuncMap)
 	if err != nil {
 		return false, err
 	}

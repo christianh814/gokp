@@ -16,7 +16,7 @@ commonAnnotations:
 resources:
 {{- range $ClusterScopedYaml := .ClusterScopedYamls }}
 - {{ Myfp $ClusterScopedYaml -}}
-{{ end }
+{{ end }}
 `
 
 type GroupResource struct {
