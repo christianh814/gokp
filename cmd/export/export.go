@@ -2,8 +2,11 @@ package export
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"html/template"
 	"os"
+	"path/filepath"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,6 +18,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubectl/pkg/scheme"
 )
+
+var FuncMap = template.FuncMap{
+	"Myfp": Myfp,
+}
 
 // ExportClusterYaml exports the given clusters YAML into the directory
 func ExportClusterYaml(capicfg string, repodir string) (bool, error) {
@@ -51,7 +58,28 @@ func ExportClusterYaml(capicfg string, repodir string) (bool, error) {
 		}
 	}
 
-	// Export namespaced scoped api resources
+	// Create kustomize file based on the YAMLs created
+	dirGlob := repodir + "/core" + "/cluster/*.yaml"
+	clusterScopedYamlFiles, err := filepath.Glob(dirGlob)
+	if err != nil {
+		return false, err
+	}
+
+	if len(clusterScopedYamlFiles) == 0 {
+		return false, errors.New("no YAML Files found at: " + dirGlob)
+	}
+	// generate the kustomization.yaml file based on the template
+	cskf := struct {
+		ClusterScopedYamls []string
+	}{
+		ClusterScopedYamls: clusterScopedYamlFiles,
+	}
+	_, err = WriteTemplateWithFunc(ClusterScopedKustomizeFile, repodir+"/core"+"/cluster/kustomization.yaml", cskf, FuncMap)
+	if err != nil {
+		return false, err
+	}
+
+	// Second, export namespaced scoped api resources
 	//CHX
 
 	// If we're here we should be okay
@@ -183,4 +211,27 @@ func getApiResources(k kubernetes.Interface, namespaced bool) ([]GroupResource, 
 		}
 	}
 	return resources, nil
+}
+
+func Myfp(s string) string {
+	return filepath.Base(s)
+}
+
+// WriteTemplateWithFunc is a generic template writing mechanism that supports template.FuncMap
+func WriteTemplateWithFunc(tpl string, fileToCreate string, vars interface{}, fm template.FuncMap) (bool, error) {
+	tmpl := template.Must(template.New("").Funcs(fm).Parse(tpl))
+
+	file, err := os.Create(fileToCreate)
+	if err != nil {
+		return false, err
+	}
+
+	err = tmpl.Execute(file, vars)
+
+	if err != nil {
+		file.Close()
+		return false, err
+	}
+	file.Close()
+	return true, nil
 }

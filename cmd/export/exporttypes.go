@@ -15,7 +15,7 @@ commonAnnotations:
 
 resources:
 {{- range $ClusterScopedYaml := .ClusterScopedYamls }}
-- {{ $ClusterScopedYaml -}}
+- {{ Myfp $ClusterScopedYaml -}}
 {{ end }
 `
 
