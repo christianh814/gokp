@@ -25,6 +25,8 @@ var FuncMap = template.FuncMap{
 
 // ExportClusterYaml exports the given clusters YAML into the directory
 func ExportClusterYaml(capicfg string, repodir string) (bool, error) {
+	/* repodir == workdir + clustername */
+
 	//Create client and dynamtic client
 	client, err := newClient(capicfg)
 	if err != nil {
@@ -46,35 +48,37 @@ func ExportClusterYaml(capicfg string, repodir string) (bool, error) {
 		return false, err
 	}
 
-	// Loop through the cluster scoped API resources and export them to <repodir>/<clustername>/core/cluster dir
+	// Loop through the cluster scoped API resources and export them to <repodir>/core/cluster dir
 	for _, car := range clusterApiResouces {
 		if car.APIResource.Name == "componentstatuses" || car.APIResource.Name == "namespaces" || car.APIResource.Name == "certificatesigningrequests" || car.APIResource.Name == "podsecuritypolicies" {
 			continue
 		}
 		// export the yaml
-		_, err = exportClusterScopedYaml(dynamicClient, car, e, repodir+"/core"+"/cluster")
+		_, err = exportClusterScopedYaml(dynamicClient, car, e, repodir+"/cluster"+"/core")
 		if err != nil {
 			return false, err
 		}
 	}
 
 	// Create kustomize file based on the YAMLs created
-	dirGlob := repodir + "/core" + "/cluster/*.yaml"
+	dirGlob := repodir + "/cluster" + "/core/*.yaml"
 	clusterScopedYamlFiles, err := filepath.Glob(dirGlob)
 	if err != nil {
 		return false, err
 	}
 
+	// If there is no yaml files, error
 	if len(clusterScopedYamlFiles) == 0 {
 		return false, errors.New("no YAML Files found at: " + dirGlob)
 	}
+
 	// generate the kustomization.yaml file based on the template
 	cskf := struct {
 		ClusterScopedYamls []string
 	}{
 		ClusterScopedYamls: clusterScopedYamlFiles,
 	}
-	_, err = WriteTemplateWithFunc(ClusterScopedKustomizeFile, repodir+"/core"+"/cluster/kustomization.yaml", cskf, FuncMap)
+	_, err = WriteTemplateWithFunc(ClusterScopedKustomizeFile, repodir+"/cluster/core/kustomization.yaml", cskf, FuncMap)
 	if err != nil {
 		return false, err
 	}
