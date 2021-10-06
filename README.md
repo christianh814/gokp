@@ -9,7 +9,7 @@ aware Kubernetes Platform on Day 0. The installer aims to:
 * Install an HA Kubernetes cluster (AWS only currently) :heavy_check_mark:
 * Install Argo CD :heavy_check_mark:
 * Configure Arog CD in an opinionated way. :heavy_check_mark:
-* Export all YAML into a Git repo (GitHub only currently) :x:
+* Export all YAML into a Git repo (GitHub only currently) :heavy_check_mark:
 * Deliver a "ready to go with GitOps" cluster. :heavy_check_mark:
 
 The idea being that the end user just needs to start commiting to the
