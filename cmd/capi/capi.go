@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	//"github.com/aws/aws-sdk-go/aws"
@@ -260,10 +261,13 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	for _, cniyamlFile := range cniyamlFiles {
 		err = DoSSA(context.TODO(), capiInstallConfig, cniyamlFile)
 		if err != nil {
-			log.Warn("Unable to read YAML: ", err)
-			//return false, err
+			if !strings.Contains(err.Error(), "is missing in") {
+				return false, err
+			}
+			//log.Warn("Unable to read YAML: ", err)
 		}
 	}
+
 	log.Info("Successfully installed CNI")
 
 	// Wait until Nodes are READY
@@ -271,7 +275,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 
 	// HACK: We sleep to give time for the CNI to rollout
 	//	TODO: Wait until CNI Deployment is done
-	time.Sleep(30 * time.Second)
+	time.Sleep(60 * time.Second)
 
 	_, err = waitForReadyNodes(capiInstallConfig)
 	if err != nil {

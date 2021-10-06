@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
@@ -62,7 +63,7 @@ func ExportClusterYaml(capicfg string, repodir string) (bool, error) {
 			continue
 		}
 		// export the yaml
-		_, err = exportClusterScopedYaml(dynamicClient, car, e, repodir+"/cluster"+"/core/cluster")
+		_, err = exportClusterScopedYaml(dynamicClient, car, e, repodir+"/cluster"+"/core/cluster", "NOT-NAMESPACED")
 		if err != nil {
 			return false, err
 		}
@@ -92,19 +93,119 @@ func ExportClusterYaml(capicfg string, repodir string) (bool, error) {
 	}
 
 	// Second, export namespaced scoped api resources
-	//CHX
+	isItNamespaced := true
+	namespacedApis, err := getApiResources(client, isItNamespaced)
+	if err != nil {
+		return false, err
+	}
+
+	namespaces, err := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return false, err
+	}
+
+	// range through every namespace and extract the YAML
+	for _, ns := range namespaces.Items {
+		outdir := repodir + "/cluster/core/" + ns.Name
+		// Get each namespaced api component
+		for _, nc := range namespacedApis {
+			// get the namespace object for later writing to YAML
+			thens, err := client.CoreV1().Namespaces().Get(context.TODO(), ns.Name, metav1.GetOptions{})
+			if err != nil {
+				return false, err
+			}
+			thens.SetResourceVersion("")
+			thens.SetUID("")
+			thens.SetAnnotations(map[string]string{})
+			thens.CreationTimestamp.Reset()
+			thens.SetSelfLink("")
+			thens.SetManagedFields([]metav1.ManagedFieldsEntry{})
+			thens.SetFinalizers([]string{})
+			thens.SetOwnerReferences([]metav1.OwnerReference{})
+			thens.SetGeneration(0)
+			thens.Status.Reset()
+			addTypeInformationToObject(thens)
+			encodeNs := json.NewYAMLSerializer(json.DefaultMetaFactory, nil, nil)
+
+			// skip unneeded resources
+			if nc.APIResource.Name == "bindings" ||
+				nc.APIResource.Name == "pods" ||
+				nc.APIResource.Name == "endpoints" ||
+				nc.APIResource.Name == "replicasets" ||
+				nc.APIResource.Name == "localsubjectaccessreviews" ||
+				nc.APIResource.Name == "selfsubjectrulesreviews" ||
+				nc.APIResource.Name == "events" ||
+				nc.APIResource.Name == "endpointslices" {
+				continue
+			}
+			// export every namespaced resource in the namespace
+			_, err = exportClusterScopedYaml(dynamicClient, nc, e, outdir, ns.Name)
+			if err != nil {
+				return false, err
+			}
+
+			// write out the namespace YAML
+			tnf, err := os.Create(outdir + "/namespace-" + ns.Name + ".yaml")
+			if err != nil {
+				return false, err
+			}
+			err = encodeNs.Encode(thens, tnf)
+			if err != nil {
+				return false, err
+			}
+			tnf.Close()
+		}
+
+		// Create kustomize file based on the YAMLs created
+		dirGlob := repodir + "/cluster" + "/core/" + ns.Name + "/*.yaml"
+		nsScopedYamlFiles, err := filepath.Glob(dirGlob)
+		if err != nil {
+			return false, err
+		}
+
+		// If there is no yaml files, error
+		if len(nsScopedYamlFiles) == 0 {
+			return false, errors.New("no YAML Files found at: " + dirGlob)
+		}
+
+		// generate the kustomization.yaml file based on the template
+		nskf := struct {
+			NsScopedYamls []string
+		}{
+			NsScopedYamls: nsScopedYamlFiles,
+		}
+		_, err = WriteTemplateWithFunc(NameSpacedScopedKustomizeFile, repodir+"/cluster/core/"+ns.Name+"/kustomization.yaml", nskf, FuncMap)
+		if err != nil {
+			return false, err
+		}
+	}
 
 	// If we're here we should be okay
 	return true, nil
 }
 
 // exportClusterScopedYaml exports all the cluster scoped yaml into the given directory
-func exportClusterScopedYaml(client dynamic.Interface, gr GroupResource, e *json.Serializer, dir string) (bool, error) {
+func exportClusterScopedYaml(client dynamic.Interface, gr GroupResource, e *json.Serializer, dir string, ns string) (bool, error) {
 	//fmt.Printf(fmt.Sprintf("Querying for %s in %s group\n", gr.APIResource.Name, gr.APIGroupVersion))
 	//list, err := client.Resource(schema.GroupVersionResource{Group: gr.APIGroup, Resource: gr.APIResource.Name, Version: gr.APIGroupVersion}).List(context.TODO(), metav1.ListOptions{})
-	list, err := client.Resource(schema.GroupVersionResource{Group: gr.APIGroup, Resource: gr.APIResource.Name, Version: gr.APIVersion}).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return false, err
+
+	/* list, err = client.Resource(schema.GroupVersionResource{Group: gr.APIGroup, Resource: gr.APIResource.Name, Version: gr.APIVersion}).List(context.TODO(), metav1.ListOptions{}) */
+
+	// set up variables for the conditional to follow
+	var list *unstructured.UnstructuredList
+	var err error
+
+	// filter by namespace
+	if ns == "NOT-NAMESPACED" {
+		list, err = client.Resource(schema.GroupVersionResource{Group: gr.APIGroup, Resource: gr.APIResource.Name, Version: gr.APIVersion}).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return false, err
+		}
+	} else {
+		list, err = client.Resource(schema.GroupVersionResource{Group: gr.APIGroup, Resource: gr.APIResource.Name, Version: gr.APIVersion}).List(context.TODO(), metav1.ListOptions{FieldSelector: "metadata.namespace=" + ns})
+		if err != nil {
+			return false, err
+		}
 	}
 
 	os.MkdirAll(dir, 0755)

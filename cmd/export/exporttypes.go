@@ -19,6 +19,19 @@ resources:
 {{ end }}
 `
 
+var NameSpacedScopedKustomizeFile string = `apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+
+commonAnnotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+
+resources:
+{{- range $NsScopedYaml := .NsScopedYamls }}
+- {{ Myfp $NsScopedYaml -}}
+{{ end }}
+`
+
 type GroupResource struct {
 	APIGroup        string
 	APIGroupVersion string
