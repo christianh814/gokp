@@ -110,7 +110,8 @@ func exportClusterScopedYaml(client dynamic.Interface, gr GroupResource, e *json
 	os.MkdirAll(dir, 0755)
 
 	for _, listItem := range list.Items {
-		listItem.SetGroupVersionKind(schema.GroupVersionKind{Group: gr.APIResource.Group, Kind: gr.APIResource.Kind, Version: gr.APIVersion})
+		//listItem.SetGroupVersionKind(schema.GroupVersionKind{Group: gr.APIResource.Group, Kind: gr.APIResource.Kind, Version: gr.APIVersion})
+		listItem.SetGroupVersionKind(schema.GroupVersionKind{Group: gr.APIResource.Group, Kind: gr.APIResource.Kind, Version: gr.APIGroupVersion})
 		metadata := listItem.Object["metadata"].(map[string]interface{})
 
 		// "Generalize" YAML
