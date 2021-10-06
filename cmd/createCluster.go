@@ -59,7 +59,7 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 
 		// Create KIND instance
 		log.Info("Creating KIND bootstrap instance")
-		err = kind.CreateKindCluster("gokp-boostrapper", KindCfg)
+		err = kind.CreateKindCluster("gokp-bootstrapper", KindCfg)
 		if err != nil {
 			log.Fatal(err)
 		}

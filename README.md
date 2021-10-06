@@ -181,7 +181,7 @@ kubectl delete clusters $MYCLUSTER
 This will take a bit, once that's done you can delete the KIND instance (called `gokp-bootstrapper`)
 
 ```shell
-kind delete cluster --name gokp-boostrapper
+kind delete cluster --name gokp-bootstrapper
 ```
 
 > If you don't have the `kind` CLI installed, just run `docker ps` to get the name and run `docker stop` on it.
