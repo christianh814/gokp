@@ -268,6 +268,11 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 
 	// Wait until Nodes are READY
 	log.Info("Waiting for worker nodes to come online")
+
+	// HACK: We sleep to give time for the CNI to rollout
+	//	TODO: Wait until CNI Deployment is done
+	time.Sleep(30 * time.Second)
+
 	_, err = waitForReadyNodes(capiInstallConfig)
 	if err != nil {
 		return false, err
@@ -455,6 +460,20 @@ func waitForReadyNodes(cfg *rest.Config) (bool, error) {
 
 			}
 		}
+		// trying to wait until they're ready
+		// TODO: Currently doesn't do what I thin kit does. Save for later
+		/*
+			for _, t := range node.Spec.Taints {
+				counter := 0
+				for ok := true; ok; ok = (t.Key == "node.kubernetes.io/not-ready") {
+					if counter > 50 {
+						return false, errors.New("nodes still tainted with not ready")
+					}
+					time.Sleep(10 * time.Second)
+					counter++
+				}
+			}
+		*/
 	}
 	// if we're here, we're okay
 	return true, nil
