@@ -56,8 +56,20 @@ kubectl --kubeconfig=./capi-quickstart.kubeconfig get nodes
 kubectl --kubeconfig=./capi-quickstart.kubeconfig get nodes --no-headers -l '!node-role.kubernetes.io/master' -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}' | xargs -I{} kubectl --kubeconfig=./capi-quickstart.kubeconfig label node {} node-role.kubernetes.io/worker=''
 
 
+## MOVE Management cluster to new cluster
+# make sure you have ALL AWS env still exported, especially AWS_B64ENCODED_CREDENTIALS
+clusterctl init --infrastructure aws --kubeconfig /path/to/aws-cluster.kubeconfig
+
+# Move cluster
+clusterctl move --kubeconfig=/path/to/kind.kubeconfig --to-kubeconfig=/path/to/aws-cluster.kubeconfig
+
+
+
 
 # CLEANUP -takes a bit
 kubectl delete cluster capi-quickstart
 
 kind delete cluster
+
+
+

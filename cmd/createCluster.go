@@ -93,7 +93,6 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 		}
 
 		// Export/Create Cluster YAML to the Repo, Make sure kustomize is used for the core components
-		//CHX
 		log.Info("Exporting Cluster YAML")
 		_, err = export.ExportClusterYaml(CapiCfg, WorkDir+"/"+clusterName)
 		if err != nil {
@@ -113,6 +112,9 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		// MOVE from kind to capi instance
+		//CHX
 
 		// Move components to ~/.gokp/<clustername> and remove stuff you don't need to know.
 		// 	TODO: this is ugly and will refactor this later

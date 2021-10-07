@@ -59,6 +59,9 @@ func ExportClusterYaml(capicfg string, repodir string) (bool, error) {
 			car.APIResource.Name == "selfsubjectaccessreviews" ||
 			car.APIResource.Name == "selfsubjectrulesreviews" ||
 			car.APIResource.Name == "subjectaccessreviews" ||
+			car.APIResource.Name == "ipamblocks" ||
+			car.APIResource.Name == "ipamhandles" ||
+			car.APIResource.Name == "ipamconfigs" ||
 			car.APIResource.Name == "podsecuritypolicies" {
 			continue
 		}
@@ -215,6 +218,15 @@ func exportClusterScopedYaml(client dynamic.Interface, gr GroupResource, e *json
 		listItem.SetGroupVersionKind(schema.GroupVersionKind{Group: gr.APIResource.Group, Kind: gr.APIResource.Kind, Version: gr.APIGroupVersion})
 		metadata := listItem.Object["metadata"].(map[string]interface{})
 
+		itemName := listItem.GetName()
+
+		// We will skip certian objects as they are managed by something else
+		if strings.Contains(itemName, "bootstrap-token") ||
+			itemName == "cluster-info" ||
+			itemName == "calico-config" {
+			continue
+		}
+
 		// "Generalize" YAML
 		delete(metadata, "resourceVersion")
 		delete(metadata, "uid")
@@ -226,6 +238,13 @@ func exportClusterScopedYaml(client dynamic.Interface, gr GroupResource, e *json
 		delete(metadata, "ownerReferences")
 		delete(metadata, "generation")
 		delete(listItem.Object, "status")
+
+		// Removing because we're just skipping this now, but leaving it in as a comment because it's useful to know
+		/*
+			if listItem.GetName() == "cluster-info" {
+				listItem.SetAnnotations(map[string]string{"argocd.argoproj.io/compare-options": "IgnoreExtraneous"})
+			}
+		*/
 
 		obj := listItem.DeepCopyObject()
 
