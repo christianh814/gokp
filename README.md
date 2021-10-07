@@ -4,21 +4,17 @@
 This project is a Proof of Concept centered around getting a GitOps
 aware Kubernetes Platform on Day 0. The installer aims to:
 
->:heavy_exclamation_mark: Items marked with :heavy_check_mark: are finished and those marked with :x: is yet to be done/coded
-
-* Install an HA Kubernetes cluster (AWS only currently) :heavy_check_mark:
-* Install Argo CD :heavy_check_mark:
-* Configure Arog CD in an opinionated way. :heavy_check_mark:
-* Export all YAML into a Git repo (GitHub only currently) :heavy_check_mark:
-* Deliver a "ready to go with GitOps" cluster. :heavy_check_mark:
+* Install an HA Kubernetes cluster (AWS only currently)
+* Install Argo CD
+* Configure Arog CD in an opinionated way
+* Export all YAML into a Git repo (GitHub only currently)
+* Deliver a "ready to go with GitOps" cluster.
 
 The idea being that the end user just needs to start commiting to the
 proper directory to futher confgure the cluster. GitOps ready, from the
 get go!
 
-Please keep in mind that this is a PoC and should be considered Pre-Alpha.
-
-> :heavy_exclamation_mark: NOTE: All things are up for discussion!
+Please keep in mind that this is a PoC and should be considered Pre-Pre-Alpha.
 
 # Prerequisites
 
