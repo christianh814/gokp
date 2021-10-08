@@ -98,6 +98,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	_, err = c.Init(capiclient.InitOptions{
 		Kubeconfig:              capiclient.Kubeconfig{Path: kindkconfig},
 		InfrastructureProviders: []string{"aws"},
+		LogUsageInstructions:    false,
 	})
 
 	if err != nil {
