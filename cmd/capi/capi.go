@@ -360,7 +360,10 @@ func waitForAWSInfra(restConfig *rest.Config, clustername string) (bool, error) 
 	// We need to load the scheme since it's not part of the core API
 	log.Info("Waiting for AWS Infrastructure")
 	scheme := runtime.NewScheme()
-	_ = clusterv1.AddToScheme(scheme)
+	err := clusterv1.AddToScheme(scheme)
+	if err != nil {
+		return false, err
+	}
 
 	c, err := client.New(restConfig, client.Options{
 		Scheme: scheme,
@@ -482,6 +485,43 @@ func waitForReadyNodes(cfg *rest.Config) (bool, error) {
 		*/
 	}
 	// if we're here, we're okay
+	return true, nil
+}
+
+// DeleteCluster deletes the given capi managed cluster
+func DeleteCluster(cfg string, name string) (bool, error) {
+	// We need to load the scheme since it's not part of the core API
+	scheme := runtime.NewScheme()
+	err := clusterv1.AddToScheme(scheme)
+	if err != nil {
+		return false, err
+	}
+
+	// Create client and use the scheme
+	kindclient, err := clientcmd.BuildConfigFromFlags("", cfg)
+	if err != nil {
+		return false, err
+	}
+	c, err := client.New(kindclient, client.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		return false, err
+	}
+
+	// Check if the cluster is there
+	cluster := &clusterv1.Cluster{}
+	if err := c.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: name}, cluster); err != nil {
+		return false, err
+	}
+
+	// Try and delete the cluster
+	err = c.Delete(context.TODO(), cluster)
+	if err != nil {
+		return false, err
+	}
+
+	//if we are here we're okay
 	return true, nil
 }
 

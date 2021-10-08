@@ -124,7 +124,6 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 		}
 
 		// Delete local Kind Cluster
-		//CHX
 		log.Info("Deleting temporary control plane")
 		err = kind.DeleteKindCluster(tcpName, KindCfg)
 		if err != nil {
