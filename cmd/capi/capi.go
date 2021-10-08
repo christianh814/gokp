@@ -10,6 +10,7 @@ import (
 
 	//"github.com/aws/aws-sdk-go/aws"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -283,6 +284,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	// Unexport AWS settings
+	os.Unsetenv("AWS_B64ENCODED_CREDENTIALS")
 	for k := range awscreds {
 		os.Unsetenv(k)
 	}
@@ -491,6 +493,41 @@ func MoveMgmtCluster(src string, dest string) (bool, error) {
 		return false, err
 	}
 
+	// Create clientset for src
+	srcclient, err := clientcmd.BuildConfigFromFlags("", src)
+	if err != nil {
+		return false, err
+	}
+	srcclientset, err := kubernetes.NewForConfig(srcclient)
+	if err != nil {
+		return false, err
+	}
+
+	// Get the secret and base64 encode it (you'd think it would come encoded but it doesn't)
+	secret, err := srcclientset.CoreV1().Secrets("capa-system").Get(context.TODO(), "capa-manager-bootstrap-credentials", metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+
+	s := secret.Data["credentials"]
+	sb64 := base64.StdEncoding.EncodeToString(s)
+	if err != nil {
+		return false, err
+	}
+
+	// export it into the env
+	os.Setenv("AWS_B64ENCODED_CREDENTIALS", sb64)
+
+	// init the dest cluster
+	_, err = c.Init(capiclient.InitOptions{
+		Kubeconfig:              capiclient.Kubeconfig{Path: dest},
+		InfrastructureProviders: []string{"aws"},
+	})
+
+	if err != nil {
+		return false, err
+	}
+
 	// perform the move
 	err = c.Move(capiclient.MoveOptions{
 		FromKubeconfig: capiclient.Kubeconfig{Path: src},
@@ -499,6 +536,9 @@ func MoveMgmtCluster(src string, dest string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
+	// Unset the env var
+	os.Unsetenv("AWS_B64ENCODED_CREDENTIALS")
 
 	// if we're here we must be okay
 	return true, nil
