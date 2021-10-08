@@ -15,8 +15,9 @@ func CreateKindCluster(name string, cfg string) error {
 	err := provider.Create(
 		name,
 		cluster.CreateWithKubeconfigPath(cfg),
-		cluster.CreateWithDisplayUsage(true),
-		cluster.CreateWithDisplaySalutation(true),
+		// setting these to false for now
+		cluster.CreateWithDisplayUsage(false),
+		cluster.CreateWithDisplaySalutation(false),
 	)
 
 	if err != nil {
