@@ -16,8 +16,8 @@ var deleteClusterCmd = &cobra.Command{
 	Use:     "delete-cluster",
 	Aliases: []string{"deleteCluster"},
 	Short:   "Deletes a gokp cluster",
-	Long: `This will delete your cluster based on the 
-kubeconfig file and name you pass it.`,
+	Long: `This will delete your cluster based on the kubeconfig file
+and name you pass it. This only deletes the cluster and not the git repo.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Create workdir and set variables
 		WorkDir, _ = utils.CreateWorkDir()
@@ -49,6 +49,13 @@ kubeconfig file and name you pass it.`,
 		// Delete cluster
 		log.Info("Deleteing cluster: " + clusterName)
 		_, err = capi.DeleteCluster(KindCfg, clusterName)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Delete local Kind Cluster
+		log.Info("Deleting temporary control plane")
+		err = kind.DeleteKindCluster(tcpName, KindCfg)
 		if err != nil {
 			log.Fatal(err)
 		}
