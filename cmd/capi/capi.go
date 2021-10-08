@@ -67,6 +67,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 		return false, err
 	}
 
+	// TODO: This may not be needed
 	err = cfnSvc.ShowStackResources(template.Spec.StackName)
 	if err != nil {
 		return false, err
