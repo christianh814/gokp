@@ -514,7 +514,7 @@ func DeleteCluster(cfg string, name string) (bool, error) {
 	}
 
 	// Try and delete the cluster
-	err = c.Delete(context.TODO(), cluster)
+	err = c.Delete(context.TODO(), cluster, &client.DeleteOptions{})
 	if err != nil {
 		return false, err
 	}
