@@ -60,12 +60,11 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 		}
 
 		// Create KIND instance
-		log.Info("Creating KIND bootstrap instance")
+		log.Info("Creating temporary control plane")
 		err = kind.CreateKindCluster(tcpName, KindCfg)
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Info("KIND Bootstrapper created")
 
 		// Create CAPI instance on AWS
 		awsCredsMap := map[string]string{

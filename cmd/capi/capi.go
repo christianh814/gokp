@@ -68,10 +68,12 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	// TODO: This may not be needed
-	err = cfnSvc.ShowStackResources(template.Spec.StackName)
-	if err != nil {
-		return false, err
-	}
+	/*	COMMENTING OUT FOR NOW TO REMOVE LATER
+		err = cfnSvc.ShowStackResources(template.Spec.StackName)
+		if err != nil {
+			return false, err
+		}
+	*/
 
 	//Encode credentials
 	awsCreds, err := creds.NewAWSCredentialFromDefaultChain(awscreds["AWS_REGION"])
@@ -86,7 +88,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	// init AWS provider into the Kind instance
-	log.Info("Initializing AWS provider into the Kind instance")
+	log.Info("Initializing AWS provider")
 
 	c, err := capiclient.New("")
 	if err != nil {
@@ -103,7 +105,6 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	// Generate cluster YAML for CAPI on KIND and apply it
-	log.Info("Generating AWS K8S cluster configurations")
 	newClient, err := capiclient.New("")
 	if err != nil {
 		return false, err
@@ -137,7 +138,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	// Apply the YAML to the KIND instance so that the cluster gets installed on AWS
-	log.Info("Configuration complete, installing cluster")
+	log.Info("Preflight complete, installing cluster")
 
 	//	use clientcmd to apply the configuration
 	clusterInstallConfig, err := clientcmd.BuildConfigFromFlags("", kindkconfig)
@@ -175,7 +176,6 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 		}
 		time.Sleep(5 * time.Second)
 	}
-	log.Info("CAPI System Online")
 
 	//	Apply the config now that the capa controller is rolled out
 
@@ -198,8 +198,6 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 			//return false, err
 		}
 	}
-
-	log.Info("CAPI System Configured")
 
 	// Wait for the controlplane to have 3 nodes and that they are initialized
 
@@ -269,8 +267,6 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 			//log.Warn("Unable to read YAML: ", err)
 		}
 	}
-
-	log.Info("Successfully installed CNI")
 
 	// Wait until Nodes are READY
 	log.Info("Waiting for worker nodes to come online")
