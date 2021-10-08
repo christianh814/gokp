@@ -482,3 +482,24 @@ func waitForReadyNodes(cfg *rest.Config) (bool, error) {
 	// if we're here, we're okay
 	return true, nil
 }
+
+// MoveMgmtCluster moves the management cluster from src kubeconfig to dest kubeconfig
+func MoveMgmtCluster(src string, dest string) (bool, error) {
+	// create capi client
+	c, err := capiclient.New("")
+	if err != nil {
+		return false, err
+	}
+
+	// perform the move
+	err = c.Move(capiclient.MoveOptions{
+		FromKubeconfig: capiclient.Kubeconfig{Path: src},
+		ToKubeconfig:   capiclient.Kubeconfig{Path: dest},
+	})
+	if err != nil {
+		return false, err
+	}
+
+	// if we're here we must be okay
+	return true, nil
+}

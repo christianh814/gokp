@@ -1,0 +1,37 @@
+package main
+
+import (
+	"context"
+	"encoding/base64"
+	"fmt"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+)
+
+func main() {
+	kubeconfigpath := "/home/chernand/.kube/config"
+	client, err := clientcmd.BuildConfigFromFlags("", kubeconfigpath)
+	if err != nil {
+		panic(err)
+	}
+	clientset, err := kubernetes.NewForConfig(client)
+	if err != nil {
+		panic(err)
+	}
+
+	secret, err := clientset.CoreV1().Secrets("capa-system").Get(context.TODO(), "capa-manager-bootstrap-credentials", metav1.GetOptions{})
+	if err != nil {
+		panic(err)
+	}
+
+	s := secret.Data["credentials"]
+	sb64 := base64.StdEncoding.EncodeToString(s)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(sb64)
+
+}

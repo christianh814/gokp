@@ -51,6 +51,8 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 		CapiCfg := WorkDir + "/" + clusterName + ".kubeconfig"
 		gokpartifacts := os.Getenv("HOME") + "/.gokp/" + clusterName
 
+		tcpName := "gokp-bootstrapper"
+
 		// Run PreReq Checks
 		_, err := utils.CheckPreReqs(gokpartifacts)
 		if err != nil {
@@ -59,7 +61,7 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 
 		// Create KIND instance
 		log.Info("Creating KIND bootstrap instance")
-		err = kind.CreateKindCluster("gokp-bootstrapper", KindCfg)
+		err = kind.CreateKindCluster(tcpName, KindCfg)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -114,7 +116,20 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 		}
 
 		// MOVE from kind to capi instance
+		//	uses the kubeconfig files of "src ~> dest"
+		log.Info("Moving CAPI Artifacts to: " + clusterName)
+		_, err = capi.MoveMgmtCluster(KindCfg, CapiCfg)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Delete local Kind Cluster
 		//CHX
+		log.Info("Deleting temporary control plane")
+		err = kind.DeleteKindCluster(tcpName, KindCfg)
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		// Move components to ~/.gokp/<clustername> and remove stuff you don't need to know.
 		// 	TODO: this is ugly and will refactor this later
@@ -140,6 +155,7 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 			"argocd-install.yaml",
 			"cni.yaml",
 			"install-cluster.yaml",
+			"kind.kubeconfig",
 		}
 
 		for _, notNeededFile := range notNeededFiles {

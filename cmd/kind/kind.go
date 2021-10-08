@@ -25,3 +25,21 @@ func CreateKindCluster(name string, cfg string) error {
 
 	return nil
 }
+
+// DeleteKindCluster deletes KIND cluster based on the name given
+func DeleteKindCluster(name string, cfg string) error {
+
+	klogger := kindcmd.NewLogger()
+	provider := cluster.NewProvider(
+		cluster.ProviderWithLogger(klogger),
+	)
+
+	err := provider.Delete(name, cfg)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
