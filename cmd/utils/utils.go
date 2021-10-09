@@ -19,7 +19,7 @@ import (
 func CheckPreReqs(lastinstalldir string) (bool, error) {
 	// This is the expected cli utils we expect you to haveinstalled
 	log.Info("Running checks")
-	cliUtils := [6]string{"kubectl", "kind", "clusterawsadm", "docker", "clusterctl", "git"}
+	cliUtils := [3]string{"kubectl", "docker", "git"}
 	for _, cli := range cliUtils {
 		_, err := exec.LookPath(cli)
 		if err != nil {

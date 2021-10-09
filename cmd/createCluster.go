@@ -7,7 +7,6 @@ import (
 	"github.com/christianh814/gokp/cmd/capi"
 	"github.com/christianh814/gokp/cmd/export"
 
-	//"github.com/christianh814/gokp/cmd/export"
 	"github.com/christianh814/gokp/cmd/github"
 	"github.com/christianh814/gokp/cmd/kind"
 	"github.com/christianh814/gokp/cmd/templates"
