@@ -514,7 +514,10 @@ func DeleteCluster(cfg string, name string) (bool, error) {
 	}
 
 	// Try and delete the cluster
-	err = c.Delete(context.TODO(), cluster, &client.DeleteOptions{})
+	deletePolicy := metav1.DeletePropagationForeground
+	err = c.Delete(context.TODO(), cluster, &client.DeleteOptions{
+		PropagationPolicy: &deletePolicy,
+	})
 	if err != nil {
 		return false, err
 	}
