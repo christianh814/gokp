@@ -324,7 +324,7 @@ func CreateDevelK8sInstance(kindkconfig string, clusterName *string, workdir str
 		ClusterName:              *clusterName,
 		ControlPlaneMachineCount: &cpMachineCount,
 		WorkerMachineCount:       &workerMachineCount,
-		KubernetesVersion:        "v1.22.2",
+		KubernetesVersion:        "v1.22.1",
 		TargetNamespace:          "default",
 		ProviderRepositorySource: &capiclient.ProviderRepositorySourceOptions{Flavor: "development"},
 	}
