@@ -721,22 +721,6 @@ func DeleteCluster(cfg string, name string) (bool, error) {
 		return false, err
 	}
 
-	// Crude wait until the object is deleted
-	for count := 0; count == 31; count++ {
-		// we've waited around 15 min which is a while
-		if count >= 30 {
-			return false, errors.New("unknown error deleting cluster")
-		}
-		// If we are able to get the object, then we stillneed to wait
-		err = c.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: name}, cluster)
-		if err == nil {
-			log.Warn("Still watiting for deletion")
-			time.Sleep(15 * time.Second)
-		} else {
-			break
-		}
-	}
-
 	//if we are here we're okay
 	return true, nil
 }
