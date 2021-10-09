@@ -61,7 +61,7 @@ and name you pass it. This only deletes the cluster and not the git repo.`,
 		}
 
 		// If we're here, the cluster should be deleted
-		log.Info("Cluster " + clusterName + "successfully deleted")
+		log.Info("Cluster " + clusterName + " successfully deleted")
 
 	},
 }
