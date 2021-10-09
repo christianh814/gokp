@@ -97,14 +97,6 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 			log.Fatal(err)
 		}
 
-		// MOVE from kind to capi instance
-		//	uses the kubeconfig files of "src ~> dest"
-		log.Info("Moving CAPI Artifacts to: " + clusterName)
-		_, err = capi.MoveMgmtCluster(KindCfg, CapiCfg)
-		if err != nil {
-			log.Fatal(err)
-		}
-
 		// Delete local Kind Cluster
 		log.Info("Deleting temporary control plane")
 		err = kind.DeleteKindCluster(tcpName, KindCfg)

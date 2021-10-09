@@ -1,44 +1,52 @@
-/*
-Copyright © 2021 NAME HERE <EMAIL ADDRESS>
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
 package cmd
 
 import (
-	"fmt"
+	"os"
 
+	"github.com/christianh814/gokp/cmd/kind"
+	"github.com/christianh814/gokp/cmd/utils"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
 // developmentDeleteCmd represents the developmentDelete command
 var developmentDeleteCmd = &cobra.Command{
-	Use:   "developmentDelete",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:     "development-delete",
+	Aliases: []string{"developmentDelete"},
+	Short:   "Deletes the gokp development cluster",
+	Long: `This will delete your development cluster based on the kubeconfig file
+and name you pass it. This only deletes the local development cluster and not the git repo.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("developmentDelete called")
+		// Create workdir and set variables
+		WorkDir, _ = utils.CreateWorkDir()
+		defer os.RemoveAll(WorkDir)
+
+		// Grab flags
+		clusterName, _ := cmd.Flags().GetString("cluster-name")
+		CapiCfg, _ := cmd.Flags().GetString("kubeconfig")
+
+		// Delete local Kind Cluster
+		log.Info("Deleting development cluster " + clusterName)
+		err := kind.DeleteKindCluster(clusterName, CapiCfg)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// If we're here, the cluster should be deleted
+		log.Info("Cluster " + clusterName + " successfully deleted")
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(developmentDeleteCmd)
 
+	// Define flags for delete-cluster
+	developmentDeleteCmd.Flags().String("kubeconfig", "", "Path to the Kubeconfig file of the gokp cluster")
+	developmentDeleteCmd.Flags().String("cluster-name", "", "Name of the gokp cluster.")
+
+	// all flags required
+	developmentDeleteCmd.MarkFlagRequired("kubeconfig")
+	developmentDeleteCmd.MarkFlagRequired("cluster-name")
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
