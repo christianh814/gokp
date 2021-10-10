@@ -721,6 +721,8 @@ func DeleteCluster(cfg string, name string) (bool, error) {
 		return false, err
 	}
 
+	log.Info("Deleting " + cluster.Name)
+
 	// wait up until 40 minutes for deletion
 	counter := 0
 	for runs := 21; counter <= runs; counter++ {
@@ -732,14 +734,17 @@ func DeleteCluster(cfg string, name string) (bool, error) {
 		c.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: name}, cluster)
 		if cluster.Status.Phase == "Deleting" {
 			time.Sleep(2 * time.Minute)
+			log.Info(cluster.Status.Phase)
 		} else {
 			// I assume it's deleted if we're here. Might not be deleted but this is
 			// best effort at this point
 			//	TODO: Figure out a better way to check for deletion
 			break
 		}
+		log.Info(cluster.Status.Phase)
 
 	}
+	log.Info("Did we delete it? " + cluster.Name)
 
 	//if we are here we're okay
 	return true, nil
