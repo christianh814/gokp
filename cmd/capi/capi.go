@@ -714,37 +714,11 @@ func DeleteCluster(cfg string, name string) (bool, error) {
 
 	// Try and delete the cluster
 	deletePolicy := metav1.DeletePropagationForeground
-	err = c.Delete(context.TODO(), cluster, &client.DeleteOptions{
+	if err = c.Delete(context.TODO(), cluster, &client.DeleteOptions{
 		PropagationPolicy: &deletePolicy,
-	})
-	if err != nil {
+	}); err != nil {
 		return false, err
 	}
-
-	log.Info("Deleting " + cluster.Name)
-
-	// wait up until 40 minutes for deletion
-	counter := 0
-	for runs := 21; counter <= runs; counter++ {
-		if counter > runs {
-			return false, errors.New("unknown error deleting cluster")
-		}
-		// get the current status, wait for status to NOT be "Deleting"
-		cluster := &clusterv1.Cluster{}
-		c.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: name}, cluster)
-		if cluster.Status.Phase == "Deleting" {
-			time.Sleep(2 * time.Minute)
-			log.Info(cluster.Status.Phase)
-		} else {
-			// I assume it's deleted if we're here. Might not be deleted but this is
-			// best effort at this point
-			//	TODO: Figure out a better way to check for deletion
-			break
-		}
-		log.Info(cluster.Status.Phase)
-
-	}
-	log.Info("Did we delete it? " + cluster.Name)
 
 	//if we are here we're okay
 	return true, nil
