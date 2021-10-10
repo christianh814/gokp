@@ -727,7 +727,7 @@ func DeleteCluster(cfg string, name string) (bool, error) {
 		if counter > runs {
 			return false, errors.New("unknown error deleting cluster")
 		}
-		// get the current status, wait for "Provisioned"
+		// get the current status, wait for status to NOT be "Deleting"
 		cluster := &clusterv1.Cluster{}
 		c.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: name}, cluster)
 		if cluster.Status.Phase == "Deleting" {
