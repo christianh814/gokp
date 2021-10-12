@@ -54,13 +54,11 @@ and name you pass it. This only deletes the cluster and not the git repo.`,
 		}
 
 		// Delete local Kind Cluster
-		/*	COMMENT OUT FOR TESTING
-			log.Info("Deleting temporary control plane")
-			err = kind.DeleteKindCluster(tcpName, KindCfg)
-			if err != nil {
-				log.Fatal(err)
-			}
-		*/
+		log.Info("Deleting temporary control plane")
+		err = kind.DeleteKindCluster(tcpName, KindCfg)
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		// If we're here, the cluster should be deleted
 		log.Info("Cluster " + clusterName + " successfully deleted")

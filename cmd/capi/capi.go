@@ -557,7 +557,7 @@ func DoSSA(ctx context.Context, cfg *rest.Config, yaml string) error {
 //	TODO: probably should use https://pkg.go.dev/k8s.io/client-go/tools/watch
 func waitForAWSInfra(restConfig *rest.Config, clustername string) (bool, error) {
 	// We need to load the scheme since it's not part of the core API
-	log.Info("Waiting for Infrastructure to provision")
+	log.Info("Waiting for Infrastructure")
 	scheme := runtime.NewScheme()
 	err := clusterv1.AddToScheme(scheme)
 	if err != nil {
@@ -711,6 +711,12 @@ func DeleteCluster(cfg string, name string) (bool, error) {
 	// Check if the cluster is there
 	cluster := &clusterv1.Cluster{}
 	if err := c.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: name}, cluster); err != nil {
+		return false, err
+	}
+
+	// Make sure the cluster is ready to be deleted
+	_, err = waitForAWSInfra(kindclient, name)
+	if err != nil {
 		return false, err
 	}
 
