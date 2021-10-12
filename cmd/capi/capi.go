@@ -24,12 +24,14 @@ import (
 	kcpv1 "sigs.k8s.io/cluster-api/controlplane/kubeadm/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/dynamic"
@@ -713,10 +715,15 @@ func DeleteCluster(cfg string, name string) (bool, error) {
 	}
 
 	// Try and delete the cluster
-	deletePolicy := metav1.DeletePropagationForeground
-	if err = c.Delete(context.TODO(), cluster, &client.DeleteOptions{
-		PropagationPolicy: &deletePolicy,
-	}); err != nil {
+	if err = c.Delete(context.TODO(), cluster, &client.DeleteOptions{}); err != nil {
+		return false, err
+	}
+
+	// Try and wait for deletion
+	retry := time.Duration(10 * time.Second)
+	timeout := time.Duration(time.Hour)
+	err = WaitForDeletion(c, cluster, retry, timeout)
+	if err != nil {
 		return false, err
 	}
 
@@ -781,4 +788,29 @@ func MoveMgmtCluster(src string, dest string) (bool, error) {
 
 	// if we're here we must be okay
 	return true, nil
+}
+
+// WaitForDeletion waits for the resouce to be deleted
+//func WaitForDeletion(dynclient client.Client, obj runtime.Object, retryInterval, timeout time.Duration) error {
+func WaitForDeletion(dynclient client.Client, obj client.Object, retryInterval, timeout time.Duration) error {
+	key := client.ObjectKeyFromObject(obj)
+
+	//kind := obj.GetObjectKind().GroupVersionKind().Kind
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
+		err = dynclient.Get(ctx, key, obj)
+		if apierrors.IsNotFound(err) {
+			return true, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		//log.Infof("Waiting for %s %s to be deleted\n", kind, key)
+		return false, nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
