@@ -4,7 +4,7 @@
 This project is a Proof of Concept centered around getting a GitOps
 aware Kubernetes Platform on Day 0. The installer aims to:
 
-* Install an HA Kubernetes cluster (AWS only currently)
+* Install an HA Kubernetes cluster (AWS or Docker)
 * Install Argo CD
 * Configure Arog CD in an opinionated way
 * Export all YAML into a Git repo (GitHub only currently)
