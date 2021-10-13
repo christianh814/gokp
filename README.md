@@ -6,7 +6,7 @@ aware Kubernetes Platform on Day 0. The installer aims to:
 
 * Install an HA Kubernetes cluster (AWS or Docker)
 * Install Argo CD
-* Configure Arog CD in an opinionated way
+* Configure Argo CD in an opinionated way
 * Export all YAML into a Git repo (GitHub only currently)
 * Deliver a "ready to go with GitOps" cluster.
 
