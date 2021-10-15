@@ -136,6 +136,7 @@ require (
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/rwtodd/Go.Sed v0.0.0-20210816025313-55464686f9ef
 	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
