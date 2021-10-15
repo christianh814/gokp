@@ -129,11 +129,6 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 		}
 
 		// Move components to ~/.gokp/<clustername> and remove stuff you don't need to know.
-		// Create the home directory
-		err = os.MkdirAll(gokpartifacts, 0755)
-		if err != nil {
-			log.Fatal(err)
-		}
 		// Move the directory
 		err = os.Rename(WorkDir, gokpartifacts)
 		if err != nil {
