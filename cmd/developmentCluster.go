@@ -105,8 +105,11 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 		}
 
 		// Move components to ~/.gokp/<clustername> and remove stuff you don't need to know.
-		// 	TODO: this is ugly and will refactor this later
-		err = utils.CopyDir(WorkDir, gokpartifacts)
+		err = os.MkdirAll(gokpartifacts, 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = os.Rename(WorkDir, gokpartifacts)
 		if err != nil {
 			log.Fatal(err)
 		}

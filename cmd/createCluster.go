@@ -129,12 +129,18 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 		}
 
 		// Move components to ~/.gokp/<clustername> and remove stuff you don't need to know.
-		// 	TODO: this is ugly and will refactor this later
-		err = utils.CopyDir(WorkDir, gokpartifacts)
+		// Create the home directory
+		err = os.MkdirAll(gokpartifacts, 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// Move the directory
+		err = os.Rename(WorkDir, gokpartifacts)
 		if err != nil {
 			log.Fatal(err)
 		}
 
+		// Remove files/directories that we may not need
 		notNeededDirs := []string{
 			"argocd-install-output",
 			"capi-install-yamls-output",

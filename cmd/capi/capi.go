@@ -278,7 +278,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 
 	// HACK: We sleep to give time for the CNI to rollout
 	//	TODO: Wait until CNI Deployment is done
-	time.Sleep(60 * time.Second)
+	time.Sleep(time.Minute)
 
 	_, err = waitForReadyNodes(capiInstallConfig)
 	if err != nil {
@@ -507,7 +507,7 @@ func CreateDevelK8sInstance(kindkconfig string, clusterName *string, workdir str
 
 	// HACK: We sleep to give time for the CNI to rollout
 	//	TODO: Wait until CNI Deployment is done
-	time.Sleep(60 * time.Second)
+	time.Sleep(time.Minute)
 
 	_, err = waitForReadyNodes(capiInstallConfig)
 	if err != nil {
@@ -598,7 +598,7 @@ func waitForAWSInfra(restConfig *rest.Config, clustername string) (bool, error) 
 
 	// wait up until 40 minutes
 	counter := 0
-	for runs := 20; counter <= runs; counter++ {
+	for runs := 40; counter <= runs; counter++ {
 		if counter > runs {
 			return false, errors.New("aws infra did not come up after 40 minutes")
 		}
@@ -610,7 +610,7 @@ func waitForAWSInfra(restConfig *rest.Config, clustername string) (bool, error) 
 		if cluster.Status.Phase == "Provisioned" {
 			break
 		}
-		time.Sleep(2 * time.Minute)
+		time.Sleep(time.Minute)
 
 	}
 	return true, nil
@@ -650,7 +650,7 @@ func waitForCP(restConfig *rest.Config, clustername string) (bool, error) {
 			break
 		}
 
-		time.Sleep(1 * time.Minute)
+		time.Sleep(time.Minute)
 
 	}
 
