@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	osruntime "runtime"
 	"strings"
 	"time"
 
@@ -13,11 +12,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 
-	"github.com/rwtodd/Go.Sed/sed"
-
 	"github.com/aws/aws-sdk-go/aws/session"
 	cfn "github.com/aws/aws-sdk-go/service/cloudformation"
-	"github.com/christianh814/gokp/cmd/kind"
 	"github.com/christianh814/gokp/cmd/utils"
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/cloudformation/bootstrap"
@@ -429,33 +425,12 @@ func CreateDevelK8sInstance(kindkconfig string, clusterName *string, workdir str
 	log.Info("Control Plane Nodes are Online, saving Kubeconfig")
 
 	// Write out CAPI kubeconfig and save it
-	var clusterKubeconfig string
-	if osruntime.GOOS == "darwin" {
-		// HACK: If we are on a mac we have to modify the file first
-		dirtyKK, err := kind.GetKindKubeconfig(*clusterName, false)
-		if err != nil {
-			return false, err
-		}
-		// Let's try this sed thing
-		engine, err := sed.New(strings.NewReader(`s/0.0.0.0/127.0.0.1/g s/certificate-authority-data:.*/insecure-skip-tls-verify: true/g`))
-		if err != nil {
-			return false, err
-		}
-		// set clusterKubeconfig
-		clusterKubeconfig, err = engine.RunString(dirtyKK)
-		if err != nil {
-			return false, err
-		}
-	} else {
-		// If we are on Linux we'll get it the "regular" way
-		clusterKubeconfig, err = c.GetKubeconfig(capiclient.GetKubeconfigOptions{
-			Kubeconfig:          capiclient.Kubeconfig{Path: kindkconfig},
-			WorkloadClusterName: *clusterName,
-		})
-		if err != nil {
-			return false, err
-		}
-
+	clusterKubeconfig, err := c.GetKubeconfig(capiclient.GetKubeconfigOptions{
+		Kubeconfig:          capiclient.Kubeconfig{Path: kindkconfig},
+		WorkloadClusterName: *clusterName,
+	})
+	if err != nil {
+		return false, err
 	}
 
 	clusterkcfg, err := os.Create(capicfg)
@@ -598,7 +573,7 @@ func waitForAWSInfra(restConfig *rest.Config, clustername string) (bool, error) 
 
 	// wait up until 40 minutes
 	counter := 0
-	for runs := 40; counter <= runs; counter++ {
+	for runs := 20; counter <= runs; counter++ {
 		if counter > runs {
 			return false, errors.New("aws infra did not come up after 40 minutes")
 		}

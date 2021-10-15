@@ -1,0 +1,75 @@
+
+## BETTER NOTES FOUND ~> https://cluster-api.sigs.k8s.io/user/quick-start.html
+
+
+# Create kind cluster
+kind create cluster
+
+# export aws stuff
+export AWS_REGION=us-east-1
+export AWS_ACCESS_KEY_ID=$(grep aws_access_key_id ~/.aws/credentials | awk -F'=' '{print $NF}' | tr -d '[:space:]')
+export AWS_SECRET_ACCESS_KEY=$(grep aws_secret_access_key ~/.aws/credentials | awk -F'=' '{print $NF}' | tr -d '[:space:]')
+
+# create IAM rules 
+clusterawsadm bootstrap iam create-cloudformation-stack
+
+# encode credentials - this is basically your ~/.aws/credentials file encoded
+export AWS_B64ENCODED_CREDENTIALS=$(clusterawsadm bootstrap credentials encode-as-profile)
+
+# Finally, initialize the management cluster
+clusterctl init --infrastructure aws
+
+
+# Export  key you want to use - should we have the user upload one first or should be upload it for them?
+## AWS CLI:
+## aws ec2 import-key-pair --key-name "chernand" --public-key-material fileb:///home/chernand/.ssh/tempkey.pub --region us-east-1
+export AWS_SSH_KEY_NAME=chernand
+
+# Select instance types
+export AWS_CONTROL_PLANE_MACHINE_TYPE=m4.xlarge
+export AWS_NODE_MACHINE_TYPE=m4.xlarge
+
+# Generate cluster configuration for CAPI the name here is `capi-quickstart`
+clusterctl generate cluster capi-quickstart \
+--kubernetes-version v1.22.2 \
+--control-plane-machine-count=3 \
+--worker-machine-count=3 > capi-quickstart.yaml
+
+# Apply to the KIND cluster
+kubectl apply -f capi-quickstart.yaml
+
+# Wait until cluster is initialized
+until [[ $(kubectl get kubeadmcontrolplane capi-quickstart-control-plane -o jsonpath='{.status.initialized}') == "true" ]]; do sleep 10; done ; echo "initialized"
+until [[ $(kubectl get kubeadmcontrolplane capi-quickstart-control-plane -o jsonpath='{.status.replicas}') -eq 3 ]] ; do sleep 10; done; echo "READY"
+
+# Get the kubeconfig
+clusterctl get kubeconfig capi-quickstart > capi-quickstart.kubeconfig
+
+# After it's up, apply calico stuff
+kubectl --kubeconfig=./capi-quickstart.kubeconfig \
+  apply -f https://docs.projectcalico.org/v3.20/manifests/calico.yaml
+
+# Nodes should show "ready" after a bit
+kubectl --kubeconfig=./capi-quickstart.kubeconfig get nodes
+
+# label nodes
+kubectl --kubeconfig=./capi-quickstart.kubeconfig get nodes --no-headers -l '!node-role.kubernetes.io/master' -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}' | xargs -I{} kubectl --kubeconfig=./capi-quickstart.kubeconfig label node {} node-role.kubernetes.io/worker=''
+
+
+## MOVE Management cluster to new cluster
+# make sure you have ALL AWS env still exported, especially AWS_B64ENCODED_CREDENTIALS
+clusterctl init --infrastructure aws --kubeconfig /path/to/aws-cluster.kubeconfig
+
+# Move cluster
+clusterctl move --kubeconfig=/path/to/kind.kubeconfig --to-kubeconfig=/path/to/aws-cluster.kubeconfig
+
+
+
+
+# CLEANUP -takes a bit
+kubectl delete cluster capi-quickstart
+
+kind delete cluster
+
+
+

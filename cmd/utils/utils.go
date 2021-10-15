@@ -36,9 +36,9 @@ func CheckPreReqs(lastinstalldir string) (bool, error) {
 }
 
 // CreateWorkDir creates a temp dir to store all the things we need
-func CreateWorkDir(path string) (string, error) {
+func CreateWorkDir() (string, error) {
 	// Genarate a temp directory for our work
-	dir, err := ioutil.TempDir(path, ".gokptmp")
+	dir, err := ioutil.TempDir("/tmp", "gokp")
 
 	// check for errors
 	if err != nil {

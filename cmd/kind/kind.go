@@ -100,10 +100,3 @@ func CreateCAPDKindCluster(name string, cfg string, dir string) error {
 
 	return nil
 }
-
-// GetKindKubeconfig returns the Kubeconfig of the named KIND cluster
-func GetKindKubeconfig(name string, internal bool) (string, error) {
-	// Create a provider and return the named kubeconfig file as a string
-	provider := cluster.NewProvider()
-	return provider.KubeConfig(name, internal)
-}

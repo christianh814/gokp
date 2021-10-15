@@ -28,6 +28,12 @@ This is a PoC stage (proof of concept) and should NOT
 be used for production. There will be lots of breaking changes
 so beware. There be dragons here. PRE-PRE-ALPHA`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Create workdir and set variables based on that
+		WorkDir, _ = utils.CreateWorkDir()
+		KindCfg = WorkDir + "/" + "kind.kubeconfig"
+		// cleanup workdir at the end
+		defer os.RemoveAll(WorkDir)
+
 		// Grab repo related flags
 		ghToken, _ := cmd.Flags().GetString("github-token")
 		clusterName, _ := cmd.Flags().GetString("cluster-name")
@@ -41,17 +47,10 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 		awsCPMachine, _ := cmd.Flags().GetString("aws-control-plane-machine")
 		awsWMachine, _ := cmd.Flags().GetString("aws-node-machine")
 
-		// Other things
 		CapiCfg := WorkDir + "/" + clusterName + ".kubeconfig"
-		gokpartifactsHome := os.Getenv("HOME") + "/.gokp"
-		gokpartifacts := gokpartifactsHome + "/" + clusterName
-		tcpName := "gokp-bootstrapper"
+		gokpartifacts := os.Getenv("HOME") + "/.gokp/" + clusterName
 
-		// Create workdir and set variables based on that
-		WorkDir, _ = utils.CreateWorkDir(gokpartifactsHome)
-		KindCfg = WorkDir + "/" + "kind.kubeconfig"
-		// cleanup workdir at the end
-		defer os.RemoveAll(WorkDir)
+		tcpName := "gokp-bootstrapper"
 
 		// Run PreReq Checks
 		_, err := utils.CheckPreReqs(gokpartifacts)
@@ -130,18 +129,12 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 		}
 
 		// Move components to ~/.gokp/<clustername> and remove stuff you don't need to know.
-		// Move the directory
-		err = os.MkdirAll(gokpartifactsHome, 0755)
+		// 	TODO: this is ugly and will refactor this later
+		err = utils.CopyDir(WorkDir, gokpartifacts)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		err = os.Rename(WorkDir, gokpartifacts)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// Remove files/directories that we may not need
 		notNeededDirs := []string{
 			"argocd-install-output",
 			"capi-install-yamls-output",

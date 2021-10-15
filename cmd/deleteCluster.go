@@ -19,20 +19,17 @@ var deleteClusterCmd = &cobra.Command{
 	Long: `This will delete your cluster based on the kubeconfig file
 and name you pass it. This only deletes the cluster and not the git repo.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Grab flags
-		clusterName, _ := cmd.Flags().GetString("cluster-name")
-		CapiCfg, _ := cmd.Flags().GetString("kubeconfig")
-
-		// set some vars
-		gokpartifactsHome := os.Getenv("HOME") + "/.gokp"
-
 		// Create workdir and set variables
-		WorkDir, _ = utils.CreateWorkDir(gokpartifactsHome)
+		WorkDir, _ = utils.CreateWorkDir()
 		KindCfg = WorkDir + "/" + "kind.kubeconfig"
 		tcpName := "gokp-bootstrapper"
 
 		// cleanup workdir at the end
 		defer os.RemoveAll(WorkDir)
+
+		// Grab flags
+		clusterName, _ := cmd.Flags().GetString("cluster-name")
+		CapiCfg, _ := cmd.Flags().GetString("kubeconfig")
 
 		// Create KIND cluster
 		log.Info("Creating temporary control plane")

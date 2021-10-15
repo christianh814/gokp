@@ -1,0 +1,53 @@
+# Create kind config
+cat > kind-cluster-with-extramounts.yaml <<EOF
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+  extraMounts:
+    - hostPath: /var/run/docker.sock
+      containerPath: /var/run/docker.sock
+EOF
+
+# Create kind cluster
+kind create cluster --config kind-cluster-with-extramounts.yaml
+
+# Initialize
+clusterctl init --infrastructure docker
+
+# Generate cluster configuration
+clusterctl generate cluster capi-quickstart --flavor development \
+  --kubernetes-version v1.22.2 \
+  --control-plane-machine-count=3 \
+  --worker-machine-count=3 \
+  > capi-quickstart.yaml
+
+
+# Apply config
+kubectl apply -f capi-quickstart.yaml
+
+
+# Wait until cluster is initialized
+until [[ $(kubectl get kubeadmcontrolplane capi-quickstart-control-plane -o jsonpath='{.status.initialized}') == "true" ]]; do sleep 10; done ; echo "initialized"
+
+until [[ $(kubectl get kubeadmcontrolplane capi-quickstart-control-plane -o jsonpath='{.status.replicas}') -eq 3 ]] ; do sleep 10; done; echo "READY"
+
+# get kubeconfig
+clusterctl get kubeconfig capi-quickstart > capi-quickstart.kubeconfig
+
+# Apply CNI
+kubectl --kubeconfig=./capi-quickstart.kubeconfig \
+  apply -f https://docs.projectcalico.org/v3.20/manifests/calico.yaml
+
+# get nodes
+kubectl --kubeconfig=./capi-quickstart.kubeconfig get nodes
+
+# label nodes
+kubectl --kubeconfig=./capi-quickstart.kubeconfig get nodes --no-headers -l '!node-role.kubernetes.io/master' -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}' | xargs -I{} kubectl --kubeconfig=./capi-quickstart.kubeconfig label node {} node-role.kubernetes.io/worker=''
+
+
+
+# CLEANUP -takes a bit
+kubectl delete cluster capi-quickstart
+
+kind delete cluster

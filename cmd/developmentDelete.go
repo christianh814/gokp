@@ -17,16 +17,13 @@ var developmentDeleteCmd = &cobra.Command{
 	Long: `This will delete your development cluster based on the kubeconfig file
 and name you pass it. This only deletes the local development cluster and not the git repo.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Create workdir and set variables
+		WorkDir, _ = utils.CreateWorkDir()
+		defer os.RemoveAll(WorkDir)
+
 		// Grab flags
 		clusterName, _ := cmd.Flags().GetString("cluster-name")
 		CapiCfg, _ := cmd.Flags().GetString("kubeconfig")
-
-		// set some vars
-		gokpartifactsHome := os.Getenv("HOME") + "/.gokp"
-
-		// Create workdir and set variables
-		WorkDir, _ = utils.CreateWorkDir(gokpartifactsHome)
-		defer os.RemoveAll(WorkDir)
 
 		// Delete local Kind Cluster
 		log.Info("Deleting development cluster " + clusterName)
