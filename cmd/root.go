@@ -16,8 +16,9 @@ var CapiCfg string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "gokp",
-	Short: "GOKP installs a GitOps ready Kubernetes cluster",
+	Use:     "gokp",
+	Version: "v0.0.2",
+	Short:   "GOKP installs a GitOps ready Kubernetes cluster",
 	Long: `GOKP creates a Kubernetes cluster using CAPI. It is
 meant to be a GitOps native Kubernetes cluster ready to use.
 
