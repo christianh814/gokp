@@ -48,7 +48,8 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 		awsWMachine, _ := cmd.Flags().GetString("aws-node-machine")
 
 		CapiCfg := WorkDir + "/" + clusterName + ".kubeconfig"
-		gokpartifacts := os.Getenv("HOME") + "/.gokp/" + clusterName
+		gokpartifactsHome := os.Getenv("HOME") + "/.gokp"
+		gokpartifacts := gokpartifactsHome + "/" + clusterName
 
 		tcpName := "gokp-bootstrapper"
 
@@ -130,6 +131,11 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 
 		// Move components to ~/.gokp/<clustername> and remove stuff you don't need to know.
 		// Move the directory
+		err = os.MkdirAll(gokpartifactsHome, 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		err = os.Rename(WorkDir, gokpartifacts)
 		if err != nil {
 			log.Fatal(err)
