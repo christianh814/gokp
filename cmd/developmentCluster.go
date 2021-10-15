@@ -27,6 +27,11 @@ This is a PoC stage (proof of concept) and should NOT
 be used for production. There will be lots of breaking changes
 so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// create home dir
+		err := os.MkdirAll(os.Getenv("HOME")+"/.gokp", 0775)
+		if err != nil {
+			log.Fatal(err)
+		}
 		// Create workdir and set variables based on that
 		WorkDir, _ = utils.CreateWorkDir()
 		KindCfg = WorkDir + "/" + "kind.kubeconfig"
@@ -46,7 +51,7 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 		tcpName := "gokp-bootstrapper"
 
 		// Run PreReq Checks
-		_, err := utils.CheckPreReqs(gokpartifacts)
+		_, err = utils.CheckPreReqs(gokpartifacts)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -106,7 +111,8 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 
 		// Move components to ~/.gokp/<clustername> and remove stuff you don't need to know.
 		// 	TODO: this is ugly and will refactor this later
-		err = utils.CopyDir(WorkDir, gokpartifacts)
+		//err = utils.CopyDir(WorkDir, gokpartifacts)
+		err = os.Rename(WorkDir, gokpartifacts)
 		if err != nil {
 			log.Fatal(err)
 		}
