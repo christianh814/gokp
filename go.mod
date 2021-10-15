@@ -117,6 +117,7 @@ require (
 	github.com/coredns/caddy v1.1.1 // indirect
 	github.com/coredns/corefile-migration v1.0.13 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/rwtodd/Go.Sed v0.0.0-20210816025313-55464686f9ef
 	github.com/sanathkr/go-yaml v0.0.0-20170819195128-ed9d249f429b // indirect
 	github.com/sanathkr/yaml v0.0.0-20170819201035-0056894fa522 // indirect
 	k8s.io/kubectl v0.22.2
