@@ -80,7 +80,9 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 			"AWS_NODE_MACHINE_TYPE":          awsWMachine,
 		}
 
-		_, err = capi.CreateAwsK8sInstance(KindCfg, &clusterName, WorkDir, awsCredsMap, CapiCfg)
+		// By default, create an HA Cluster
+		haCluster := true
+		_, err = capi.CreateAwsK8sInstance(KindCfg, &clusterName, WorkDir, awsCredsMap, CapiCfg, haCluster)
 		if err != nil {
 			log.Fatal(err)
 		}

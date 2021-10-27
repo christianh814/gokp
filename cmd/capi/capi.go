@@ -49,11 +49,15 @@ var CNIurl string = "https://docs.projectcalico.org/v3.20/manifests/calico.yaml"
 var decUnstructured = yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 
 // CreateAwsK8sInstance creates a Kubernetes cluster on AWS using CAPI and CAPI-AWS
-func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir string, awscreds map[string]string, capicfg string) (bool, error) {
+func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir string, awscreds map[string]string, capicfg string, createHaCluster bool) (bool, error) {
 	// Export AWS settings as Env vars
 	for k := range awscreds {
 		os.Setenv(k, awscreds[k])
 	}
+
+	// Set up variables
+	var cpMachineCount int64
+	var workerMachineCount int64
 
 	// Boostrapping Cloud Formation stack on AWS
 	log.Info("Boostrapping Cloud Formation stack on AWS")
@@ -116,8 +120,16 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 
 	//	Set up options to write out the install YAML
 	//	TODO: Make Kubernetes version an option
-	var cpMachineCount int64 = 3
-	var workerMachineCount int64 = 3
+	if createHaCluster {
+		// If HA was requested we create it
+		cpMachineCount = 3
+		workerMachineCount = 3
+		//
+	} else {
+		// If HA was NOT requested we create a small cluster
+		cpMachineCount = 1
+		workerMachineCount = 2
+	}
 	cto := capiclient.GetClusterTemplateOptions{
 		Kubeconfig:               capiclient.Kubeconfig{Path: kindkconfig},
 		ClusterName:              *clusterName,
@@ -212,7 +224,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	//	Then, wait for the CP to appear
-	_, err = waitForCP(clusterInstallConfig, *clusterName)
+	_, err = waitForCP(clusterInstallConfig, *clusterName, createHaCluster)
 	if err != nil {
 		return false, err
 	}
@@ -296,8 +308,10 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 }
 
 // CreateDevelK8sInstance creates a K8S cluster on Docker
-func CreateDevelK8sInstance(kindkconfig string, clusterName *string, workdir string, capicfg string) (bool, error) {
+func CreateDevelK8sInstance(kindkconfig string, clusterName *string, workdir string, capicfg string, createHaCluster bool) (bool, error) {
 	log.Info("Initializing Docker provider")
+	var cpMachineCount int64
+	var workerMachineCount int64
 
 	c, err := capiclient.New("")
 	if err != nil {
@@ -322,8 +336,16 @@ func CreateDevelK8sInstance(kindkconfig string, clusterName *string, workdir str
 
 	//	Set up options to write out the install YAML
 	//	TODO: Make Kubernetes version an option
-	var cpMachineCount int64 = 3
-	var workerMachineCount int64 = 3
+	if createHaCluster {
+		// If HA was requested we create it
+		cpMachineCount = 3
+		workerMachineCount = 3
+		//
+	} else {
+		// If HA was NOT requested we create a small cluster
+		cpMachineCount = 1
+		workerMachineCount = 2
+	}
 	cto := capiclient.GetClusterTemplateOptions{
 		Kubeconfig:               capiclient.Kubeconfig{Path: kindkconfig},
 		ClusterName:              *clusterName,
@@ -420,7 +442,7 @@ func CreateDevelK8sInstance(kindkconfig string, clusterName *string, workdir str
 	}
 
 	//	Then, wait for the CP to appear
-	_, err = waitForCP(clusterInstallConfig, *clusterName)
+	_, err = waitForCP(clusterInstallConfig, *clusterName, createHaCluster)
 	if err != nil {
 		return false, err
 	}
@@ -617,11 +639,18 @@ func waitForAWSInfra(restConfig *rest.Config, clustername string) (bool, error) 
 
 // waitForCP waits until the CP to come up
 //	TODO: probably should use https://pkg.go.dev/k8s.io/client-go/tools/watch
-func waitForCP(restConfig *rest.Config, clustername string) (bool, error) {
+func waitForCP(restConfig *rest.Config, clustername string, createHaCluster bool) (bool, error) {
 	log.Info("Waiting for the Control Plane to appear")
 	// Set the vars we need
 	cpname := clustername + "-control-plane"
-	var expectedCPReplicas int32 = 3
+	var expectedCPReplicas int32
+
+	if createHaCluster {
+		expectedCPReplicas = 3
+	} else {
+		expectedCPReplicas = 1
+
+	}
 
 	// We need to load the scheme since it's not part of the core API
 	scheme := runtime.NewScheme()

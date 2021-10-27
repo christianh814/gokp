@@ -43,6 +43,9 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 		clusterName, _ := cmd.Flags().GetString("cluster-name")
 		privateRepo, _ := cmd.Flags().GetBool("private-repo")
 
+		// HA request
+		createHaCluster, _ := cmd.Flags().GetBool("ha")
+
 		// Set up cluster artifacts
 		CapiCfg := WorkDir + "/" + clusterName + ".kubeconfig"
 		gokpartifacts := os.Getenv("HOME") + "/.gokp/" + clusterName
@@ -64,7 +67,7 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 		}
 
 		// Create Development instance
-		_, err = capi.CreateDevelK8sInstance(KindCfg, &clusterName, WorkDir, CapiCfg)
+		_, err = capi.CreateDevelK8sInstance(KindCfg, &clusterName, WorkDir, CapiCfg, createHaCluster)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -157,6 +160,7 @@ func init() {
 	developmentClusterCmd.Flags().String("github-token", "", "GitHub token to use.")
 	developmentClusterCmd.Flags().String("cluster-name", "", "Name of your cluster.")
 	developmentClusterCmd.Flags().BoolP("private-repo", "", true, "Create a private repo.")
+	developmentClusterCmd.Flags().BoolP("ha", "", false, "Create an HA cluster.")
 
 	// required flags
 	developmentClusterCmd.MarkFlagRequired("github-token")
