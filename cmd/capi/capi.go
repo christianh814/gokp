@@ -49,7 +49,7 @@ var CNIurl string = "https://docs.projectcalico.org/v3.20/manifests/calico.yaml"
 var decUnstructured = yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 
 // CreateAwsK8sInstance creates a Kubernetes cluster on AWS using CAPI and CAPI-AWS
-func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir string, awscreds map[string]string, capicfg string, createHaCluster bool) (bool, error) {
+func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir string, awscreds map[string]string, capicfg string, createHaCluster bool, skipCloudFormation bool) (bool, error) {
 	// Export AWS settings as Env vars
 	for k := range awscreds {
 		os.Setenv(k, awscreds[k])
@@ -59,28 +59,26 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	var cpMachineCount int64
 	var workerMachineCount int64
 
-	// Boostrapping Cloud Formation stack on AWS
-	log.Info("Boostrapping Cloud Formation stack on AWS")
-	template := bootstrap.NewTemplate()
-	sess, err := session.NewSession()
-	if err != nil {
-		return false, err
-	}
+	// Boostrapping Cloud Formation stack on AWS only if needed
+	if !skipCloudFormation {
 
-	cfnSvc := cloudformation.NewService(cfn.New(sess))
-
-	err = cfnSvc.ReconcileBootstrapStack(template.Spec.StackName, *template.RenderCloudFormation())
-	if err != nil {
-		return false, err
-	}
-
-	// TODO: This may not be needed
-	/*	COMMENTING OUT FOR NOW TO REMOVE LATER
-		err = cfnSvc.ShowStackResources(template.Spec.StackName)
+		log.Info("Boostrapping Cloud Formation stack on AWS")
+		template := bootstrap.NewTemplate()
+		sess, err := session.NewSession()
 		if err != nil {
 			return false, err
 		}
-	*/
+
+		cfnSvc := cloudformation.NewService(cfn.New(sess))
+
+		err = cfnSvc.ReconcileBootstrapStack(template.Spec.StackName, *template.RenderCloudFormation())
+		if err != nil {
+			return false, err
+		}
+
+	} else {
+		log.Info("Skipping CloudFormation Creation")
+	}
 
 	//Encode credentials
 	awsCreds, err := creds.NewAWSCredentialFromDefaultChain(awscreds["AWS_REGION"])

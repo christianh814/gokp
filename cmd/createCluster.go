@@ -51,6 +51,7 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 		awsSSHKey, _ := cmd.Flags().GetString("aws-ssh-key")
 		awsCPMachine, _ := cmd.Flags().GetString("aws-control-plane-machine")
 		awsWMachine, _ := cmd.Flags().GetString("aws-node-machine")
+		skipCloudFormation, _ := cmd.Flags().GetBool("skip-cloud-formation")
 
 		CapiCfg := WorkDir + "/" + clusterName + ".kubeconfig"
 		gokpartifacts := os.Getenv("HOME") + "/.gokp/" + clusterName
@@ -82,7 +83,7 @@ so beware. There be dragons here. PRE-PRE-ALPHA`,
 
 		// By default, create an HA Cluster
 		haCluster := true
-		_, err = capi.CreateAwsK8sInstance(KindCfg, &clusterName, WorkDir, awsCredsMap, CapiCfg, haCluster)
+		_, err = capi.CreateAwsK8sInstance(KindCfg, &clusterName, WorkDir, awsCredsMap, CapiCfg, haCluster, skipCloudFormation)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -189,6 +190,7 @@ func init() {
 	createClusterCmd.Flags().String("aws-ssh-key", "default", "The SSH key in AWS that you want to use for the instances.")
 	createClusterCmd.Flags().String("aws-control-plane-machine", "m4.xlarge", "The AWS instance type for the Control Plane")
 	createClusterCmd.Flags().String("aws-node-machine", "m4.xlarge", "The AWS instance type for the Worker instances")
+	createClusterCmd.Flags().BoolP("skip-cloud-formation", "", false, "Skip the creation of the CloudFormation Template.")
 
 	// require the following flags
 	createClusterCmd.MarkFlagRequired("github-token")
