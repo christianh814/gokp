@@ -734,6 +734,28 @@ func waitForReadyNodes(cfg *rest.Config) (bool, error) {
 			}
 		*/
 	}
+	// Label workers as such - First select the non control-plane nodes
+	workers, err := nodesClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
+		LabelSelector: `!node-role.kubernetes.io/control-plane`,
+	})
+	if err != nil {
+		return false, err
+	}
+	// Loop through and label these nodes as workers
+	for _, w := range workers.Items {
+		// set up the key and value for the worker
+		labelKey := "node-role.kubernetes.io/worker"
+		labelValue := ""
+
+		// Apply the labels on the Node object
+		labels := w.Labels
+		labels[labelKey] = labelValue
+		w.SetLabels(labels)
+
+		// Tell the API to update the node
+		nodesClientSet.CoreV1().Nodes().Update(context.TODO(), &w, metav1.UpdateOptions{})
+	}
+
 	// if we're here, we're okay
 	return true, nil
 }
