@@ -16,10 +16,9 @@ import (
 
 // developmentClusterCmd represents the developmentCluster command
 var developmentClusterCmd = &cobra.Command{
-	Use:     "development-cluster",
-	Aliases: []string{"developmentCluster"},
-	Short:   "Creates a local testing cluster using Docker",
-	Long: `Create a GitOps Ready K8S Test Cluster using CAPI + Argo CD!
+	Use:   "development",
+	Short: "Creates a local testing cluster using Docker",
+	Long: `Create a GitOps Ready K8S Test Cluster using CAPI!
 
 Currenly Docker + GitHub.
 	
@@ -154,7 +153,7 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 }
 
 func init() {
-	rootCmd.AddCommand(developmentClusterCmd)
+	createClusterCmd.AddCommand(developmentClusterCmd)
 
 	// Repo Specific Flags
 	developmentClusterCmd.Flags().String("github-token", "", "GitHub token to use.")
@@ -165,14 +164,4 @@ func init() {
 	// required flags
 	developmentClusterCmd.MarkFlagRequired("github-token")
 	developmentClusterCmd.MarkFlagRequired("cluster-name")
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// developmentClusterCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// developmentClusterCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

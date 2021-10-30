@@ -15,8 +15,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// awsCmd represents the aws command
-var awsCmd = &cobra.Command{
+// awscreateCmd represents the aws create command
+var awscreateCmd = &cobra.Command{
 	Use:   "aws",
 	Short: "Creates a GOKP Cluster on AWS",
 	Long: `Create a GOKP Cluster on AWS. This will build a cluster on AWS using the given
@@ -182,35 +182,25 @@ doesn't create one for you).`,
 }
 
 func init() {
-	createClusterCmd.AddCommand(awsCmd)
+	createClusterCmd.AddCommand(awscreateCmd)
 
 	// Repo specific flags
-	awsCmd.Flags().String("github-token", "", "GitHub token to use.")
-	awsCmd.Flags().String("cluster-name", "", "Name of your cluster.")
-	awsCmd.Flags().BoolP("private-repo", "", true, "Create a private repo.")
+	awscreateCmd.Flags().String("github-token", "", "GitHub token to use.")
+	awscreateCmd.Flags().String("cluster-name", "", "Name of your cluster.")
+	awscreateCmd.Flags().BoolP("private-repo", "", true, "Create a private repo.")
 
 	//AWS Specific flags
-	awsCmd.Flags().String("aws-region", "us-east-1", "Which region to deploy to.")
-	awsCmd.Flags().String("aws-access-key", "", "Your AWS Access Key.")
-	awsCmd.Flags().String("aws-secret-key", "", "Your AWS Secret Key.")
-	awsCmd.Flags().String("aws-ssh-key", "default", "The SSH key in AWS that you want to use for the instances.")
-	awsCmd.Flags().String("aws-control-plane-machine", "m4.xlarge", "The AWS instance type for the Control Plane")
-	awsCmd.Flags().String("aws-node-machine", "m4.xlarge", "The AWS instance type for the Worker instances")
-	awsCmd.Flags().BoolP("skip-cloud-formation", "", false, "Skip the creation of the CloudFormation Template.")
+	awscreateCmd.Flags().String("aws-region", "us-east-1", "Which region to deploy to.")
+	awscreateCmd.Flags().String("aws-access-key", "", "Your AWS Access Key.")
+	awscreateCmd.Flags().String("aws-secret-key", "", "Your AWS Secret Key.")
+	awscreateCmd.Flags().String("aws-ssh-key", "default", "The SSH key in AWS that you want to use for the instances.")
+	awscreateCmd.Flags().String("aws-control-plane-machine", "m4.xlarge", "The AWS instance type for the Control Plane")
+	awscreateCmd.Flags().String("aws-node-machine", "m4.xlarge", "The AWS instance type for the Worker instances")
+	awscreateCmd.Flags().BoolP("skip-cloud-formation", "", false, "Skip the creation of the CloudFormation Template.")
 
 	// require the following flags
-	awsCmd.MarkFlagRequired("github-token")
-	awsCmd.MarkFlagRequired("cluster-name")
-	awsCmd.MarkFlagRequired("aws-access-key")
-	awsCmd.MarkFlagRequired("aws-secret-key")
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// awsCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// awsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	awscreateCmd.MarkFlagRequired("github-token")
+	awscreateCmd.MarkFlagRequired("cluster-name")
+	awscreateCmd.MarkFlagRequired("aws-access-key")
+	awscreateCmd.MarkFlagRequired("aws-secret-key")
 }

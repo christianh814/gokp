@@ -1,51 +1,80 @@
-/*
-Copyright © 2021 NAME HERE <EMAIL ADDRESS>
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
 package cmd
 
 import (
-	"fmt"
+	"os"
 
+	"github.com/christianh814/gokp/cmd/capi"
+	"github.com/christianh814/gokp/cmd/kind"
+	"github.com/christianh814/gokp/cmd/utils"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
-// awsCmd represents the aws command
-var awsCmd = &cobra.Command{
+// awsDeleteCmd represents the aws delete command
+var awsDeleteCmd = &cobra.Command{
 	Use:   "aws",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "Deletes a GOKP cluster running on AWS",
+	Long: `This will delete your cluster that is running on aws
+based on the kubeconfig file and name you pass it.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+This only deletes the cluster and not the git repo.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("aws called")
+		// Create workdir and set variables
+		WorkDir, _ = utils.CreateWorkDir()
+		KindCfg = WorkDir + "/" + "kind.kubeconfig"
+		tcpName := "gokp-bootstrapper"
+
+		// cleanup workdir at the end
+		defer os.RemoveAll(WorkDir)
+
+		// Grab flags
+		clusterName, _ := cmd.Flags().GetString("cluster-name")
+		CapiCfg, _ := cmd.Flags().GetString("kubeconfig")
+
+		// Create KIND cluster
+		log.Info("Creating temporary control plane")
+		err := kind.CreateKindCluster(tcpName, KindCfg)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Move Capi components to the KIND cluster
+		log.Info("Moving CAPI Artifacts to the tempoary control plane")
+		_, err = capi.MoveMgmtCluster(CapiCfg, KindCfg)
+		if err != nil {
+			log.Fatal(err)
+
+		}
+
+		// Delete cluster
+		log.Info("Deleteing cluster: " + clusterName)
+		_, err = capi.DeleteCluster(KindCfg, clusterName)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Delete local Kind Cluster
+		log.Info("Deleting temporary control plane")
+		err = kind.DeleteKindCluster(tcpName, KindCfg)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// If we're here, the cluster should be deleted
+		log.Info("Cluster " + clusterName + " successfully deleted")
+
 	},
 }
 
 func init() {
-	deleteClusterCmd.AddCommand(awsCmd)
+	deleteClusterCmd.AddCommand(awsDeleteCmd)
 
-	// Here you will define your flags and configuration settings.
+	// Define flags for delete-cluster
+	awsDeleteCmd.Flags().String("kubeconfig", "", "Path to the Kubeconfig file of the gokp cluster")
+	awsDeleteCmd.Flags().String("cluster-name", "", "Name of the gokp cluster.")
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// awsCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// all flags required
+	awsDeleteCmd.MarkFlagRequired("kubeconfig")
+	awsDeleteCmd.MarkFlagRequired("cluster-name")
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// awsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
