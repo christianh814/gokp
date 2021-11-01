@@ -11,9 +11,8 @@ import (
 
 // developmentDeleteCmd represents the developmentDelete command
 var developmentDeleteCmd = &cobra.Command{
-	Use:     "development-delete",
-	Aliases: []string{"developmentDelete"},
-	Short:   "Deletes the gokp development cluster",
+	Use:   "development",
+	Short: "Deletes the gokp development cluster",
 	Long: `This will delete your development cluster based on the kubeconfig file
 and name you pass it. This only deletes the local development cluster and not the git repo.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -38,7 +37,7 @@ and name you pass it. This only deletes the local development cluster and not th
 }
 
 func init() {
-	rootCmd.AddCommand(developmentDeleteCmd)
+	deleteClusterCmd.AddCommand(developmentDeleteCmd)
 
 	// Define flags for delete-cluster
 	developmentDeleteCmd.Flags().String("kubeconfig", "", "Path to the Kubeconfig file of the gokp cluster")
@@ -47,13 +46,4 @@ func init() {
 	// all flags required
 	developmentDeleteCmd.MarkFlagRequired("kubeconfig")
 	developmentDeleteCmd.MarkFlagRequired("cluster-name")
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// developmentDeleteCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// developmentDeleteCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/christianh814/gokp/cmd/argo"
 	"github.com/christianh814/gokp/cmd/capi"
 	"github.com/christianh814/gokp/cmd/export"
+
 	"github.com/christianh814/gokp/cmd/github"
 	"github.com/christianh814/gokp/cmd/kind"
 	"github.com/christianh814/gokp/cmd/templates"
@@ -14,18 +15,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// developmentClusterCmd represents the developmentCluster command
-var developmentClusterCmd = &cobra.Command{
-	Use:     "development-cluster",
-	Aliases: []string{"developmentCluster"},
-	Short:   "Creates a local testing cluster using Docker",
-	Long: `Create a GitOps Ready K8S Test Cluster using CAPI + Argo CD!
+// awscreateCmd represents the aws create command
+var awscreateCmd = &cobra.Command{
+	Use:   "aws",
+	Short: "Creates a GOKP Cluster on AWS",
+	Long: `Create a GOKP Cluster on AWS. This will build a cluster on AWS using the given
+credentials. For example:
 
-Currenly Docker + GitHub.
-	
-This is a PoC stage (proof of concept) and should NOT
-be used for production. There will be lots of breaking changes
-so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
+gokp create-cluster --cluster-name=mycluster \
+--github-token=githubtoken \
+--aws-ssh-key=sshkeynameonaws \
+--aws-access-key=awsaccesskeyid \
+--aws-secret-key=awssecretaccesskey \
+--private-repo=true
+
+The aws ssh key must already exist on your account (the installer
+doesn't create one for you).`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// create home dir
 		err := os.MkdirAll(os.Getenv("HOME")+"/.gokp", 0775)
@@ -43,11 +48,18 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 		clusterName, _ := cmd.Flags().GetString("cluster-name")
 		privateRepo, _ := cmd.Flags().GetBool("private-repo")
 
-		// Set up cluster artifacts
+		// Grab AWS related flags
+		awsRegion, _ := cmd.Flags().GetString("aws-region")
+		awsAccessKey, _ := cmd.Flags().GetString("aws-access-key")
+		awsSecretKey, _ := cmd.Flags().GetString("aws-secret-key")
+		awsSSHKey, _ := cmd.Flags().GetString("aws-ssh-key")
+		awsCPMachine, _ := cmd.Flags().GetString("aws-control-plane-machine")
+		awsWMachine, _ := cmd.Flags().GetString("aws-node-machine")
+		skipCloudFormation, _ := cmd.Flags().GetBool("skip-cloud-formation")
+
 		CapiCfg := WorkDir + "/" + clusterName + ".kubeconfig"
 		gokpartifacts := os.Getenv("HOME") + "/.gokp/" + clusterName
 
-		// set the bootstrapper name
 		tcpName := "gokp-bootstrapper"
 
 		// Run PreReq Checks
@@ -58,13 +70,24 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 
 		// Create KIND instance
 		log.Info("Creating temporary control plane")
-		err = kind.CreateCAPDKindCluster(tcpName, KindCfg, WorkDir)
+		err = kind.CreateKindCluster(tcpName, KindCfg)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		// Create Development instance
-		_, err = capi.CreateDevelK8sInstance(KindCfg, &clusterName, WorkDir, CapiCfg)
+		// Create CAPI instance on AWS
+		awsCredsMap := map[string]string{
+			"AWS_REGION":                     awsRegion,
+			"AWS_ACCESS_KEY_ID":              awsAccessKey,
+			"AWS_SECRET_ACCESS_KEY":          awsSecretKey,
+			"AWS_SSH_KEY_NAME":               awsSSHKey,
+			"AWS_CONTROL_PLANE_MACHINE_TYPE": awsCPMachine,
+			"AWS_NODE_MACHINE_TYPE":          awsWMachine,
+		}
+
+		// By default, create an HA Cluster
+		haCluster := true
+		_, err = capi.CreateAwsK8sInstance(KindCfg, &clusterName, WorkDir, awsCredsMap, CapiCfg, haCluster, skipCloudFormation)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -102,6 +125,14 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 			log.Fatal(err)
 		}
 
+		// MOVE from kind to capi instance
+		//	uses the kubeconfig files of "src ~> dest"
+		log.Info("Moving CAPI Artifacts to: " + clusterName)
+		_, err = capi.MoveMgmtCluster(KindCfg, CapiCfg)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		// Delete local Kind Cluster
 		log.Info("Deleting temporary control plane")
 		err = kind.DeleteKindCluster(tcpName, KindCfg)
@@ -111,7 +142,7 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 
 		// Move components to ~/.gokp/<clustername> and remove stuff you don't need to know.
 		// 	TODO: this is ugly and will refactor this later
-		//err = utils.CopyDir(WorkDir, gokpartifacts)
+		///err = utils.CopyDir(WorkDir, gokpartifacts)
 		err = os.Rename(WorkDir, gokpartifacts)
 		if err != nil {
 			log.Fatal(err)
@@ -135,7 +166,6 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 			"cni.yaml",
 			"install-cluster.yaml",
 			"kind.kubeconfig",
-			"kindconfig.yaml",
 		}
 
 		for _, notNeededFile := range notNeededFiles {
@@ -147,28 +177,30 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 
 		// Give info
 		log.Info("Cluster Successfully installed! Everything you need is under: ~/.gokp/", clusterName)
+
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(developmentClusterCmd)
+	createClusterCmd.AddCommand(awscreateCmd)
 
-	// Repo Specific Flags
-	developmentClusterCmd.Flags().String("github-token", "", "GitHub token to use.")
-	developmentClusterCmd.Flags().String("cluster-name", "", "Name of your cluster.")
-	developmentClusterCmd.Flags().BoolP("private-repo", "", true, "Create a private repo.")
+	// Repo specific flags
+	awscreateCmd.Flags().String("github-token", "", "GitHub token to use.")
+	awscreateCmd.Flags().String("cluster-name", "", "Name of your cluster.")
+	awscreateCmd.Flags().BoolP("private-repo", "", true, "Create a private repo.")
 
-	// required flags
-	developmentClusterCmd.MarkFlagRequired("github-token")
-	developmentClusterCmd.MarkFlagRequired("cluster-name")
+	//AWS Specific flags
+	awscreateCmd.Flags().String("aws-region", "us-east-1", "Which region to deploy to.")
+	awscreateCmd.Flags().String("aws-access-key", "", "Your AWS Access Key.")
+	awscreateCmd.Flags().String("aws-secret-key", "", "Your AWS Secret Key.")
+	awscreateCmd.Flags().String("aws-ssh-key", "default", "The SSH key in AWS that you want to use for the instances.")
+	awscreateCmd.Flags().String("aws-control-plane-machine", "m4.xlarge", "The AWS instance type for the Control Plane")
+	awscreateCmd.Flags().String("aws-node-machine", "m4.xlarge", "The AWS instance type for the Worker instances")
+	awscreateCmd.Flags().BoolP("skip-cloud-formation", "", false, "Skip the creation of the CloudFormation Template.")
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// developmentClusterCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// developmentClusterCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// require the following flags
+	awscreateCmd.MarkFlagRequired("github-token")
+	awscreateCmd.MarkFlagRequired("cluster-name")
+	awscreateCmd.MarkFlagRequired("aws-access-key")
+	awscreateCmd.MarkFlagRequired("aws-secret-key")
 }
