@@ -1,6 +1,7 @@
 package templates
 
 import (
+	"encoding/base64"
 	"os"
 	"strings"
 
@@ -61,6 +62,7 @@ data:
         - /spec/allocations
 `
 
+/*
 var ArgoCdOverlayDefaultRepoSecret string = `apiVersion: v1
 kind: Secret
 metadata:
@@ -74,6 +76,21 @@ stringData:
   username: not-used
   password: {{.GitHubToken}}
 {{ end }}
+`
+*/
+
+var ArgoCdOverlayDefaultRepoSecret string = `apiVersion: v1
+kind: Secret
+metadata:
+  name: cluster-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+data:
+  sshPrivateKey: {{.SSHPrivateKey}}
+  type: Z2l0
+  url: {{.ClusterGitOpsRepo}}
 `
 
 var ArgoCdComponetnsApplicationSetKustomize string = `resources:
@@ -325,14 +342,19 @@ func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo str
 			}
 
 			// Write out the argocd secret of the repo based on the vars and template
+			sshKeyFile, err := utils.B64EncodeFile(workdir + "/" + *name + "_rsa")
+			if err != nil {
+				return false, err
+			}
 			githubInfo := struct {
 				ClusterGitOpsRepo string
-				GitHubToken       string
-				IsPrivate         bool
+				SSHPrivateKey     string
+				//IsPrivate         bool
 			}{
-				ClusterGitOpsRepo: gitopsrepo,
-				GitHubToken:       ghtoken,
-				IsPrivate:         *private,
+				ClusterGitOpsRepo: base64.StdEncoding.EncodeToString([]byte(gitopsrepo)),
+				SSHPrivateKey:     sshKeyFile,
+				//GitHubToken:       ghtoken,
+				//IsPrivate:         *private,
 			}
 			_, err = utils.WriteTemplate(ArgoCdOverlayDefaultRepoSecret, dir+"/"+"repo-secret.yaml", githubInfo)
 			if err != nil {
