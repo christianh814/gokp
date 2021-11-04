@@ -473,7 +473,8 @@ func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo str
 
 	// Commit and push initialize skel
 	log.Info("Pushing initial skel repo structure")
-	_, err := github.CommitAndPush(repoDir, ghtoken, "initializing skel repo structure")
+	privateKeyFile := workdir + "/" + *name + "_rsa"
+	_, err := github.CommitAndPush(repoDir, privateKeyFile, "initializing skel repo structure")
 	if err != nil {
 		return false, err
 	}

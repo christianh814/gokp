@@ -12,7 +12,6 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	plumbingssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/google/go-github/v39/github"
 	log "github.com/sirupsen/logrus"
@@ -96,7 +95,7 @@ func CreateRepo(name *string, token string, private *bool, workdir string) (bool
 }
 
 // CommitAndPush commits and pushes changes to a github repo that has been changed locally
-func CommitAndPush(dir string, token string, msg string) (bool, error) {
+func CommitAndPush(dir string, privateKeyFile string, msg string) (bool, error) {
 	// Open the dir for commiting
 	repo, err := git.PlainOpen(dir)
 	if err != nil {
@@ -133,13 +132,22 @@ func CommitAndPush(dir string, token string, msg string) (bool, error) {
 		return false, err
 	}
 
+	// Read sshkey to do the clone
+	authKey, err := plumbingssh.NewPublicKeysFromFile("git", privateKeyFile, "")
+	if err != nil {
+		return false, err
+	}
+
 	//Push to repo
 	err = repo.Push(&git.PushOptions{
 		RemoteName: "origin",
-		Auth: &http.BasicAuth{
-			Username: "unused",
-			Password: token,
-		},
+		Auth:       authKey,
+		/*
+			Auth: &http.BasicAuth{
+				Username: "unused",
+				Password: token,
+			},
+		*/
 	})
 
 	if err != nil {
