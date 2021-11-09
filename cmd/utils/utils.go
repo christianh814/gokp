@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"bufio"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -219,4 +221,28 @@ func CopyDir(source string, dest string) error {
 
 	}
 	return err
+}
+
+// B64EncodeFile returns the base64 encoding of a file as a string. The file must be a full path
+func B64EncodeFile(file string) (string, error) {
+	// Open file on disk.
+	f, err := os.Open(file)
+	if err != nil {
+		return "", err
+	}
+	// be sure to close the file
+	defer f.Close()
+
+	// Read file into byte slice.
+	reader := bufio.NewReader(f)
+	content, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return "", err
+	}
+
+	// Encode as base64.
+	encoded := base64.StdEncoding.EncodeToString(content)
+
+	// return result
+	return encoded, nil
 }

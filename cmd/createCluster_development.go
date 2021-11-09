@@ -91,7 +91,8 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 		}
 
 		// Git push newly exported YAML to GitOps repo
-		_, err = github.CommitAndPush(WorkDir+"/"+clusterName, ghToken, "exporting existing YAML")
+		privateKeyFile := WorkDir + "/" + clusterName + "_rsa"
+		_, err = github.CommitAndPush(WorkDir+"/"+clusterName, privateKeyFile, "exporting existing YAML")
 		if err != nil {
 			log.Fatal(err)
 		}

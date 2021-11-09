@@ -2,14 +2,20 @@ package github
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"io/ioutil"
 	"os"
 	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	plumbingssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/google/go-github/v39/github"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/oauth2"
 )
 
@@ -38,28 +44,49 @@ func CreateRepo(name *string, token string, private *bool, workdir string) (bool
 	r := &github.Repository{Name: name, Private: private, Description: description, AutoInit: &autoInit}
 	repo, _, err := client.Repositories.Create(ctx, "", r)
 	if err != nil {
-		log.Fatal(err)
+		return false, "", err
+	}
+
+	// Create an SSHKeypair for the repo.
+	publicKeyBytes, err := generateSSHKeypair(*name, workdir)
+	if err != nil {
+		return false, "", err
+	}
+
+	// upload public sshkey as a deploy key
+	err = uploadDeployKey(publicKeyBytes, repo.GetOwner().GetLogin(), *name, client)
+	if err != nil {
 		return false, "", err
 	}
 
 	// Get the remote URL and set the name of the local copy
-	repoUrl := repo.GetCloneURL()
+	//repoUrl := repo.GetCloneURL()
+	repoUrl := repo.GetSSHURL()
 	localRepo := workdir + "/" + *name
 
 	// Maksure the localRepo is there
 	os.MkdirAll(localRepo, 0755)
 
+	// Read sshkey to do the clone
+	privateKeyFile := workdir + "/" + *name + "_rsa"
+	authKey, err := plumbingssh.NewPublicKeysFromFile("git", privateKeyFile, "")
+	if err != nil {
+		return false, "", err
+	}
+
 	// Clone the repo locally in the working dir (as localRepo)
 	_, err = git.PlainClone(localRepo, false, &git.CloneOptions{
-		URL: repoUrl,
-		Auth: &http.BasicAuth{
-			Username: "unused",
-			Password: token,
-		},
+		URL:  repoUrl,
+		Auth: authKey,
+		/*
+			Auth: &http.BasicAuth{
+				Username: "unused",
+				Password: token,
+			},
+		*/
 	})
 
 	if err != nil {
-		log.Fatal(err)
 		return false, "", err
 	}
 
@@ -67,7 +94,8 @@ func CreateRepo(name *string, token string, private *bool, workdir string) (bool
 	return true, repoUrl, nil
 }
 
-func CommitAndPush(dir string, token string, msg string) (bool, error) {
+// CommitAndPush commits and pushes changes to a github repo that has been changed locally
+func CommitAndPush(dir string, privateKeyFile string, msg string) (bool, error) {
 	// Open the dir for commiting
 	repo, err := git.PlainOpen(dir)
 	if err != nil {
@@ -104,13 +132,22 @@ func CommitAndPush(dir string, token string, msg string) (bool, error) {
 		return false, err
 	}
 
+	// Read sshkey to do the clone
+	authKey, err := plumbingssh.NewPublicKeysFromFile("git", privateKeyFile, "")
+	if err != nil {
+		return false, err
+	}
+
 	//Push to repo
 	err = repo.Push(&git.PushOptions{
 		RemoteName: "origin",
-		Auth: &http.BasicAuth{
-			Username: "unused",
-			Password: token,
-		},
+		Auth:       authKey,
+		/*
+			Auth: &http.BasicAuth{
+				Username: "unused",
+				Password: token,
+			},
+		*/
 	})
 
 	if err != nil {
@@ -121,4 +158,110 @@ func CommitAndPush(dir string, token string, msg string) (bool, error) {
 	log.Info("Successfully pushed commit")
 
 	return true, nil
+}
+
+// generateSSHKeypair generates an sshkeypair to use as a deploykey on Github
+func generateSSHKeypair(clustername string, workdir string) ([]byte, error) {
+	key := workdir + "/" + clustername + "_rsa"
+	savePrivateFileTo := key
+	savePublicFileTo := key + ".pub"
+	bitSize := 4096
+
+	privateKey, err := generatePrivateKey(bitSize)
+	if err != nil {
+		return nil, err
+	}
+
+	publicKeyBytes, err := generatePublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	privateKeyBytes := encodePrivateKeyToPEM(privateKey)
+
+	err = writeKeyToFile(privateKeyBytes, savePrivateFileTo)
+	if err != nil {
+		return nil, err
+	}
+
+	err = writeKeyToFile([]byte(publicKeyBytes), savePublicFileTo)
+	if err != nil {
+		return nil, err
+	}
+	return publicKeyBytes, nil
+}
+
+// generatePrivateKey creates a RSA Private Key of specified byte size
+func generatePrivateKey(bitSize int) (*rsa.PrivateKey, error) {
+	// Private Key generation
+	privateKey, err := rsa.GenerateKey(rand.Reader, bitSize)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate Private Key
+	err = privateKey.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	return privateKey, nil
+}
+
+// encodePrivateKeyToPEM encodes Private Key from RSA to PEM format
+func encodePrivateKeyToPEM(privateKey *rsa.PrivateKey) []byte {
+	// Get ASN.1 DER format
+	privDER := x509.MarshalPKCS1PrivateKey(privateKey)
+
+	// pem.Block
+	privBlock := pem.Block{
+		Type:    "RSA PRIVATE KEY",
+		Headers: nil,
+		Bytes:   privDER,
+	}
+
+	// Private key in PEM format
+	privatePEM := pem.EncodeToMemory(&privBlock)
+
+	return privatePEM
+}
+
+// generatePublicKey take a rsa.PublicKey and return bytes suitable for writing to .pub file. Returns in the format "ssh-rsa ..."
+func generatePublicKey(privatekey *rsa.PublicKey) ([]byte, error) {
+	publicRsaKey, err := ssh.NewPublicKey(privatekey)
+	if err != nil {
+		return nil, err
+	}
+
+	pubKeyBytes := ssh.MarshalAuthorizedKey(publicRsaKey)
+
+	return pubKeyBytes, nil
+}
+
+// writePemToFile writes keys to a file
+func writeKeyToFile(keyBytes []byte, saveFileTo string) error {
+	err := ioutil.WriteFile(saveFileTo, keyBytes, 0600)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// uploadDeployKey uploads deploykey to GitHub
+func uploadDeployKey(publicKeyBytes []byte, repoOwner string, name string, client *github.Client) error {
+	// Set up the github key object based on the key given to use as a []byte
+	mykey := string(publicKeyBytes)
+	key := &github.Key{
+		Key: &mykey,
+	}
+
+	// upload the deploykey to the repo
+	_, _, err := client.Repositories.CreateKey(context.TODO(), repoOwner, name, key)
+	if err != nil {
+		return err
+	}
+
+	// if we're here we should be okay
+	return nil
 }

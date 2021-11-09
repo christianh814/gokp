@@ -48,6 +48,8 @@ var CNIurl string = "https://docs.projectcalico.org/v3.20/manifests/calico.yaml"
 
 var decUnstructured = yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 
+var KubernetesVersion string = "v1.22.2"
+
 // CreateAwsK8sInstance creates a Kubernetes cluster on AWS using CAPI and CAPI-AWS
 func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir string, awscreds map[string]string, capicfg string, createHaCluster bool, skipCloudFormation bool) (bool, error) {
 	// Export AWS settings as Env vars
@@ -133,7 +135,7 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 		ClusterName:              *clusterName,
 		ControlPlaneMachineCount: &cpMachineCount,
 		WorkerMachineCount:       &workerMachineCount,
-		KubernetesVersion:        "v1.22.2",
+		KubernetesVersion:        KubernetesVersion,
 		TargetNamespace:          "default",
 	}
 
@@ -349,7 +351,7 @@ func CreateDevelK8sInstance(kindkconfig string, clusterName *string, workdir str
 		ClusterName:              *clusterName,
 		ControlPlaneMachineCount: &cpMachineCount,
 		WorkerMachineCount:       &workerMachineCount,
-		KubernetesVersion:        "v1.22.1",
+		KubernetesVersion:        KubernetesVersion,
 		TargetNamespace:          "default",
 		ProviderRepositorySource: &capiclient.ProviderRepositorySourceOptions{Flavor: "development"},
 	}
