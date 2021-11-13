@@ -102,9 +102,9 @@ require (
 	k8s.io/klog/v2 v2.10.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20210929172449-94abcedd1aa4 // indirect
 	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b // indirect
-	sigs.k8s.io/cluster-api v1.0.0
+	sigs.k8s.io/cluster-api v1.0.1
 	sigs.k8s.io/cluster-api-provider-aws v1.0.0
-	sigs.k8s.io/controller-runtime v0.10.2
+	sigs.k8s.io/controller-runtime v0.10.3
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
@@ -143,4 +143,4 @@ require (
 	k8s.io/apiextensions-apiserver v0.22.2 // indirect
 )
 
-replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.0.0
+replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.0.1
