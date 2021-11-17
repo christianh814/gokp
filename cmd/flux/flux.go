@@ -1,4 +1,4 @@
-package argo
+package flux
 
 import (
 	"context"
@@ -12,32 +12,32 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// BootstrapArgoCD installs ArgoCD on a given cluster with the provided Kustomize-ed dir
-func BootstrapArgoCD(clustername *string, workdir string, capicfg string) (bool, error) {
+// BootstrapFluxCD installs FluxCD on a given cluster with the provided Kustomize-ed dir
+func BootstrapFluxCD(clustername *string, workdir string, capicfg string) (bool, error) {
 	// Set the repoDir path where things should be cloned.
 	// check if it exists
 	repoDir := workdir + "/" + *clustername
-	overlay := repoDir + "/cluster/bootstrap/overlays/default"
+	overlay := repoDir + "/cluster/core/flux-system"
 	if _, err := os.Stat(repoDir); os.IsNotExist(err) {
 		return false, err
 	}
 
-	// generate the ArgoCD Install YAML
-	argocdyaml := workdir + "/" + "argocd-install.yaml"
-	_, err := utils.RunKustomize(overlay, argocdyaml)
+	// generate the FluxCD Install YAML
+	fluxcdyaml := workdir + "/" + "flux-install.yaml"
+	_, err := utils.RunKustomize(overlay, fluxcdyaml)
 	if err != nil {
 		return false, err
 	}
 
 	// Let's take that YAML and apply it to the created cluster
 	// First, let's split this up into smaller files
-	err = utils.SplitYamls(workdir+"/"+"argocd-install-output", argocdyaml, "---")
+	err = utils.SplitYamls(workdir+"/"+"fluxcd-install-output", fluxcdyaml, "---")
 	if err != nil {
 		return false, err
 	}
 
 	//get a list of those files
-	argoInstallYamls, err := filepath.Glob(workdir + "/" + "argocd-install-output" + "/" + "*.yaml")
+	fluxInstallYamls, err := filepath.Glob(workdir + "/" + "fluxcd-install-output" + "/" + "*.yaml")
 	if err != nil {
 		return false, err
 	}
@@ -53,13 +53,13 @@ func BootstrapArgoCD(clustername *string, workdir string, capicfg string) (bool,
 	for runs := 15; counter <= runs; counter++ {
 		// break if we've tried 15 times (aka 30 seconds)
 		if counter > runs {
-			return false, errors.New("failed to apply argo manifests")
+			return false, errors.New("failed to apply flux manifests")
 		}
 		// set the error count
 		errcount := 0
 		// loop through the YAMLS counting the errors
-		for _, argoInstallYaml := range argoInstallYamls {
-			err = capi.DoSSA(context.TODO(), capiInstallConfig, argoInstallYaml)
+		for _, fluxInstallYaml := range fluxInstallYamls {
+			err = capi.DoSSA(context.TODO(), capiInstallConfig, fluxInstallYaml)
 			if err != nil {
 				errcount++
 			}

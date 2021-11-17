@@ -9,9 +9,11 @@ var ClusterScopedKustomizeFile string = `apiVersion: kustomize.config.k8s.io/v1b
 kind: Kustomization
 
 
+{{- if eq .GitOpsController "argocd"}}
 commonAnnotations:
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
     argocd.argoproj.io/sync-options: Validate=false
+{{ end }}
 
 resources:
 {{- range $ClusterScopedYaml := .ClusterScopedYamls }}
@@ -23,8 +25,10 @@ var NameSpacedScopedKustomizeFile string = `apiVersion: kustomize.config.k8s.io/
 kind: Kustomization
 
 
+{{- if eq .GitOpsController "argocd"}}
 commonAnnotations:
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+{{ end }}
 
 resources:
 {{- range $NsScopedYaml := .NsScopedYamls }}

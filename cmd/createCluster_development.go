@@ -6,6 +6,7 @@ import (
 	"github.com/christianh814/gokp/cmd/argo"
 	"github.com/christianh814/gokp/cmd/capi"
 	"github.com/christianh814/gokp/cmd/export"
+	"github.com/christianh814/gokp/cmd/flux"
 	"github.com/christianh814/gokp/cmd/github"
 	"github.com/christianh814/gokp/cmd/kind"
 	"github.com/christianh814/gokp/cmd/templates"
@@ -42,6 +43,9 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 		clusterName, _ := cmd.Flags().GetString("cluster-name")
 		privateRepo, _ := cmd.Flags().GetBool("private-repo")
 
+		// Set GitOps Controller
+		gitOpsController, _ := cmd.Flags().GetString("gitops-controller")
+
 		// HA request
 		createHaCluster, _ := cmd.Flags().GetBool("ha")
 
@@ -53,7 +57,7 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 		tcpName := "gokp-bootstrapper"
 
 		// Run PreReq Checks
-		_, err = utils.CheckPreReqs(gokpartifacts)
+		_, err = utils.CheckPreReqs(gokpartifacts, gitOpsController)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -77,15 +81,26 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 			log.Fatal(err)
 		}
 
-		// Create repo dir structure. Including Argo CD install YAMLs and base YAMLs. Push initial dir structure out
-		_, err = templates.CreateRepoSkel(&clusterName, WorkDir, ghToken, gitopsrepo, &privateRepo)
-		if err != nil {
-			log.Fatal(err)
+		// Create repo dir structure based on which gitops controller that was chosen
+		if gitOpsController == "argocd" {
+			// Create repo dir structure. Including Argo CD install YAMLs and base YAMLs. Push initial dir structure out
+			_, err = templates.CreateArgoRepoSkel(&clusterName, WorkDir, ghToken, gitopsrepo, &privateRepo)
+			if err != nil {
+				log.Fatal(err)
+			}
+		} else if gitOpsController == "fluxcd" {
+			// Create repo dir structure. Including Flux CD install YAMLs and base YAMLs. Push initial dir structure out
+			_, err = templates.CreateFluxRepoSkel(&clusterName, WorkDir, ghToken, gitopsrepo, &privateRepo)
+			if err != nil {
+				log.Fatal(err)
+			}
+		} else {
+			log.Fatal("unknown gitops controller")
 		}
 
 		// Export/Create Cluster YAML to the Repo, Make sure kustomize is used for the core components
 		log.Info("Exporting Cluster YAML")
-		_, err = export.ExportClusterYaml(CapiCfg, WorkDir+"/"+clusterName)
+		_, err = export.ExportClusterYaml(CapiCfg, WorkDir+"/"+clusterName, gitOpsController)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -97,12 +112,23 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 			log.Fatal(err)
 		}
 
-		// Install Argo CD on the newly created cluster
-		// Deploy applications/applicationsets
-		log.Info("Deploying Argo CD GitOps Controller")
-		_, err = argo.BootstrapArgoCD(&clusterName, WorkDir, CapiCfg)
-		if err != nil {
-			log.Fatal(err)
+		// Deplopy the GitOps controller that was chosen
+		if gitOpsController == "argocd" {
+			// Install Argo CD on the newly created cluster with applications/applicationsets
+			log.Info("Deploying Argo CD GitOps Controller")
+			_, err = argo.BootstrapArgoCD(&clusterName, WorkDir, CapiCfg)
+			if err != nil {
+				log.Fatal(err)
+			}
+		} else if gitOpsController == "fluxcd" {
+			// Install Flux CD on the newly created cluster with all it's components
+			log.Info("Deploying Flux CD GitOps Controller")
+			_, err = flux.BootstrapFluxCD(&clusterName, WorkDir, CapiCfg)
+			if err != nil {
+				log.Fatal(err)
+			}
+		} else {
+			log.Fatal("unknown gitops controller")
 		}
 
 		// Delete local Kind Cluster
@@ -120,29 +146,21 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 			log.Fatal(err)
 		}
 
-		notNeededDirs := []string{
+		notNeeded := []string{
 			"argocd-install-output",
 			"capi-install-yamls-output",
 			"cni-output",
-		}
-
-		for _, notNeededDir := range notNeededDirs {
-			err = os.RemoveAll(gokpartifacts + "/" + notNeededDir)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-
-		notNeededFiles := []string{
+			"fluxcd-install-output",
 			"argocd-install.yaml",
+			"flux-install.yaml",
 			"cni.yaml",
 			"install-cluster.yaml",
 			"kind.kubeconfig",
 			"kindconfig.yaml",
 		}
 
-		for _, notNeededFile := range notNeededFiles {
-			err = os.Remove(gokpartifacts + "/" + notNeededFile)
+		for _, notNeededthing := range notNeeded {
+			err = os.RemoveAll(gokpartifacts + "/" + notNeededthing)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -155,6 +173,9 @@ so beware. This create a local cluster for testing. PRE-PRE-ALPHA.`,
 
 func init() {
 	createClusterCmd.AddCommand(developmentClusterCmd)
+
+	// GitOps Controller Flag
+	developmentClusterCmd.Flags().String("gitops-controller", "argocd", "The GitOps Controller to use for this cluster.")
 
 	// Repo Specific Flags
 	developmentClusterCmd.Flags().String("github-token", "", "GitHub token to use.")
