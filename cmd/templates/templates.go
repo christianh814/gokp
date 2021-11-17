@@ -11,266 +11,8 @@ import (
 	"github.com/christianh814/gokp/cmd/utils"
 )
 
-var ArgoKustomizeFile string = `apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-namespace: argocd
-
-resources:
-- argocd-ns.yaml
-- https://raw.githubusercontent.com/argoproj/argo-cd/{{.ArgocdVer}}/manifests/install.yaml
-- https://raw.githubusercontent.com/argoproj-labs/applicationset/{{.AppsetVers}}/manifests/install.yaml
-`
-
-var ArgoCdNameSpaceFile string = `apiVersion: v1
-kind: Namespace
-metadata:
-  name: argocd
-spec: {}
-status: {}
-`
-
-var ArgoCdOverlayDefaultKustomize string = `apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-
-patchesStrategicMerge:
-- argocd-cm.yaml
-resources:
-- repo-secret.yaml
-bases:
-- ../../base
-- ../../../components/argocdproj
-- ../../../components/applicationsets
-`
-
-var ArgoCdOverlayDefaultConfigMap string = `apiVersion: v1
-kind: ConfigMap
-metadata:
-  labels:
-    app.kubernetes.io/name: argocd-cm
-    app.kubernetes.io/part-of: argocd
-  name: argocd-cm
-  namespace: argocd
-data:
-  resource.customizations: |
-    storage.k8s.io/CSINode:
-      ignoreDifferences: |
-        jsonPointers:
-        - /spec/drivers
-    crd.projectcalico.org/IPAMBlock:
-      ignoreDifferences: |
-        jsonPointers:
-        - /spec/allocations
-`
-
-/*
-var ArgoCdOverlayDefaultRepoSecret string = `apiVersion: v1
-kind: Secret
-metadata:
-  name: cluster-repo
-  namespace: argocd
-  labels:
-    argocd.argoproj.io/secret-type: repository
-stringData:
-  url: {{.ClusterGitOpsRepo}}
-{{- if .IsPrivate }}
-  username: not-used
-  password: {{.GitHubToken}}
-{{ end }}
-`
-*/
-
-var ArgoCdOverlayDefaultRepoSecret string = `apiVersion: v1
-kind: Secret
-metadata:
-  name: cluster-repo
-  namespace: argocd
-  labels:
-    argocd.argoproj.io/secret-type: repository
-type: Opaque
-data:
-  sshPrivateKey: {{.SSHPrivateKey}}
-  type: Z2l0
-  url: {{.ClusterGitOpsRepo}}
-`
-
-var ArgoCdComponetnsApplicationSetKustomize string = `resources:
-- cluster-components.yaml
-- tenants.yaml
-`
-var ArgoCdComponentsArgoProjKustomize string = `resources:
-- cluster.yaml
-`
-
-var ArgoCdClusterComponentApplicationSet string = `
-apiVersion: argoproj.io/v1alpha1
-kind: ApplicationSet
-metadata:
-  name: cluster
-  namespace: argocd
-spec:
-  generators:
-  - git:
-      repoURL: {{.ClusterGitOpsRepo}}
-      revision: main
-      directories:
-      - path: cluster/core/*
-  template:
-    metadata:
-      name: {{.RawPathBasename}}
-    spec:
-      project: cluster
-      syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
-        retry:
-          limit: 15
-          backoff:
-            duration: 15s
-            factor: 2
-            maxDuration: 5m
-      source:
-        repoURL: {{.ClusterGitOpsRepo}}
-        targetRevision: main
-        path: {{.RawPath}}
-      destination:
-        server: https://kubernetes.default.svc
-`
-
-var ArgoCdTenantApplicationSet string = `
-apiVersion: argoproj.io/v1alpha1
-kind: ApplicationSet
-metadata:
-  name: tenants
-  namespace: argocd
-spec:
-  generators:
-  - git:
-      repoURL: {{.ClusterGitOpsRepo}}
-      revision: main
-      directories:
-      - path: cluster/tenants/*
-  template:
-    metadata:
-      name: {{.RawPathBasename}}
-    spec:
-      project: cluster
-      syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
-        retry:
-          limit: 15
-          backoff:
-            duration: 15s
-            factor: 2
-            maxDuration: 5m
-      source:
-        repoURL: {{.ClusterGitOpsRepo}}
-        targetRevision: main
-        path: {{.RawPath}}
-      destination:
-        server: https://kubernetes.default.svc
-`
-
-var ArgoCdComponentsArgoProjProject string = `apiVersion: argoproj.io/v1alpha1
-kind: AppProject
-metadata:
-  name: cluster
-  namespace: argocd
-spec:
-  clusterResourceWhitelist:
-  - group: '*'
-    kind: '*'
-  destinations:
-  - namespace: '*'
-    server: '*'
-  sourceRepos:
-  - '*'
-`
-
-var ArgoCdArgoKustomize string = `apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-
-commonAnnotations:
-    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-options: Validate=false
-
-bases:
-- ../../bootstrap/overlays/default/
-`
-
-var KuardSampleAppDeploy string = `apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app: kuard
-  name: kuard
-  namespace: kuard
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: kuard
-  strategy: {}
-  template:
-    metadata:
-      creationTimestamp: null
-      labels:
-        app: kuard
-    spec:
-      containers:
-      - image: gcr.io/kuar-demo/kuard-amd64:blue
-        name: kuard-amd64
-        resources:
-          requests:
-            memory: "32Mi"
-            cpu: "60m"
-          limits:
-            memory: "64Mi"
-            cpu: "120m"
-`
-
-var KuardSampleAppSvc string = `apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app: kuard
-  name: kuard
-  namespace: kuard
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: kuard
-  strategy: {}
-  template:
-    metadata:
-      creationTimestamp: null
-      labels:
-        app: kuard
-    spec:
-      containers:
-      - image: gcr.io/kuar-demo/kuard-amd64:blue
-        name: kuard-amd64
-        resources:
-          requests:
-            memory: "32Mi"
-            cpu: "60m"
-          limits:
-            memory: "64Mi"
-            cpu: "120m"
-`
-
-var KuardSampleAppNS string = `apiVersion: v1
-kind: Namespace
-metadata:
-  name: kuard
-spec: {}
-`
-
-// CreateRepoSkel creates the skeleton repo structure at the given place
-func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo string, private *bool) (bool, error) {
+// CreateArgoRepoSkel creates the skeleton repo structure at the given place
+func CreateArgoRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo string, private *bool) (bool, error) {
 	// Repo Dir should be our workdir + the name of our cluster
 	repoDir := workdir + "/" + *name
 	directories := []string{
@@ -440,6 +182,155 @@ func CreateRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo str
 			}
 
 		}
+		if strings.Contains(dir, "kuard") {
+
+			// dummy vars for now
+			dummyVars := struct {
+				Dummykey string
+			}{
+				Dummykey: "unused",
+			}
+
+			// Write out the deployment file based on the vars and the template
+			_, err := utils.WriteTemplate(KuardSampleAppDeploy, dir+"/"+"kuard-deploy.yaml", dummyVars)
+			if err != nil {
+				return false, err
+			}
+
+			// Write out the deployment file based on the vars and the template
+			_, err = utils.WriteTemplate(KuardSampleAppSvc, dir+"/"+"kuard-service.yaml", dummyVars)
+			if err != nil {
+				return false, err
+			}
+
+			// Write out the deployment file based on the vars and the template
+			_, err = utils.WriteTemplate(KuardSampleAppNS, dir+"/"+"kuard-ns.yaml", dummyVars)
+			if err != nil {
+				return false, err
+			}
+
+		}
+
+	}
+
+	// Commit and push initialize skel
+	log.Info("Pushing initial skel repo structure")
+	privateKeyFile := workdir + "/" + *name + "_rsa"
+	_, err := github.CommitAndPush(repoDir, privateKeyFile, "initializing skel repo structure")
+	if err != nil {
+		return false, err
+	}
+	// If we're here, everything should be okay
+	return true, nil
+}
+
+// CreateFluxRepoSkel creates the skeleton repo structure at the given place
+func CreateFluxRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo string, private *bool) (bool, error) {
+	// Repo Dir should be our workdir + the name of our cluster
+	repoDir := workdir + "/" + *name
+	directories := []string{
+		repoDir + "/" + "cluster/core/flux-system/",
+		repoDir + "/" + "cluster/core/cluster-extras/",
+		repoDir + "/" + "cluster/tenants/kuard/",
+	}
+
+	// check if the dir is there. If not, error out
+	if _, err := os.Stat(repoDir); os.IsNotExist(err) {
+		return false, err
+	}
+
+	// Create directories
+	log.Info("Creating skeleton repo structure")
+	for _, dir := range directories {
+		os.MkdirAll(dir, 0755)
+
+		// Lot's of ifs coming your way
+
+		//	flux-system
+		if strings.Contains(dir, "core") && strings.Contains(dir, "flux-system") {
+
+			// Set the version of Flux we want to install
+			FluxInstallVars := struct {
+				FluxcdVersion string
+			}{
+				FluxcdVersion: "v0.23.0",
+			}
+
+			// Write out the flux-system kustomization file based on the vars and the template
+			_, err := utils.WriteTemplate(FluxKustomizeFile, dir+"/"+"kustomization.yaml", FluxInstallVars)
+			if err != nil {
+				return false, err
+			}
+
+			// Set the Vars for the git ssh secret
+			privateKeyB64, _ := utils.B64EncodeFile(workdir + "/" + *name + "_rsa")
+			publicKeyB64, _ := utils.B64EncodeFile(workdir + "/" + *name + "_rsa.pub")
+			SshSecretVars := struct {
+				ClusterGitPrivateKey string
+				ClusterGitPublicKey  string
+			}{
+				ClusterGitPrivateKey: privateKeyB64,
+				ClusterGitPublicKey:  publicKeyB64,
+			}
+
+			// Write out the GitRepository file based on the vars and the template
+			_, err = utils.WriteTemplate(FluxGitSshSecret, dir+"/"+"cluster-sshsecret.yaml", SshSecretVars)
+			if err != nil {
+				return false, err
+			}
+
+			// Set the GitRepoURI
+			GitRepoURIVars := struct {
+				GitRepoURI string
+			}{
+				GitRepoURI: "ssh://" + strings.ReplaceAll(gitopsrepo, ":", "/"),
+			}
+
+			// Write out the GitRepository file based on the vars and the template
+			_, err = utils.WriteTemplate(FluxGotkGitRepoFile, dir+"/"+"cluster-gitrepo.yaml", GitRepoURIVars)
+			if err != nil {
+				return false, err
+			}
+
+			// dummy vars for now
+			dummyVars := struct {
+				Dummykey string
+			}{
+				Dummykey: "unused",
+			}
+
+			// Write out the Kustomization file. No vars needed so we dummy them
+			_, err = utils.WriteTemplate(FluxGotkKustomizationFile, dir+"/"+"cluster-kustomization.yaml", dummyVars)
+			if err != nil {
+				return false, err
+			}
+
+			// Write out the flux-system install YAML
+			_, err = utils.WriteTemplate(FluxInstallFile, dir+"/"+"flux-system.yaml", dummyVars)
+			if err != nil {
+				return false, err
+			}
+
+		}
+		//	cluster-extras
+		if strings.Contains(dir, "core") && strings.Contains(dir, "cluster-extras") {
+
+			// Set the version of Flux we want to install
+			FluxInstallVars := struct {
+				FluxcdVersion string
+			}{
+				FluxcdVersion: "v0.23.0",
+			}
+
+			// Write out the flux-system kustomization file based on the vars and the template
+			_, err := utils.WriteTemplate(FluxGotkTenantsFile, dir+"/"+"cluster-tenants.yaml", FluxInstallVars)
+			if err != nil {
+				return false, err
+			}
+
+		}
+
+		//	Sample workload based on kuard
 		if strings.Contains(dir, "kuard") {
 
 			// dummy vars for now

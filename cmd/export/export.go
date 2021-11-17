@@ -25,7 +25,7 @@ var FuncMap = template.FuncMap{
 }
 
 // ExportClusterYaml exports the given clusters YAML into the directory
-func ExportClusterYaml(capicfg string, repodir string) (bool, error) {
+func ExportClusterYaml(capicfg string, repodir string, gitOpsController string) (bool, error) {
 	/* repodir == workdir + clustername */
 
 	//Create client and dynamtic client
@@ -87,8 +87,10 @@ func ExportClusterYaml(capicfg string, repodir string) (bool, error) {
 	// generate the kustomization.yaml file based on the template
 	cskf := struct {
 		ClusterScopedYamls []string
+		GitOpsController   string
 	}{
 		ClusterScopedYamls: clusterScopedYamlFiles,
+		GitOpsController:   gitOpsController,
 	}
 	_, err = WriteTemplateWithFunc(ClusterScopedKustomizeFile, repodir+"/cluster/core/cluster/kustomization.yaml", cskf, FuncMap)
 	if err != nil {
@@ -173,9 +175,11 @@ func ExportClusterYaml(capicfg string, repodir string) (bool, error) {
 
 		// generate the kustomization.yaml file based on the template
 		nskf := struct {
-			NsScopedYamls []string
+			NsScopedYamls    []string
+			GitOpsController string
 		}{
-			NsScopedYamls: nsScopedYamlFiles,
+			NsScopedYamls:    nsScopedYamlFiles,
+			GitOpsController: gitOpsController,
 		}
 		_, err = WriteTemplateWithFunc(NameSpacedScopedKustomizeFile, repodir+"/cluster/core/"+ns.Name+"/kustomization.yaml", nskf, FuncMap)
 		if err != nil {

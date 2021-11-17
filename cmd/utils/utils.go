@@ -3,6 +3,7 @@ package utils
 import (
 	"bufio"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,10 +16,12 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/cluster-api/cmd/clusterctl/client"
+	"sigs.k8s.io/kustomize/api/krusty"
+	"sigs.k8s.io/kustomize/kyaml/filesys"
 )
 
 // CheckPreReqs() checks to see if you have the proper CLI tools installed
-func CheckPreReqs(lastinstalldir string) (bool, error) {
+func CheckPreReqs(lastinstalldir string, gitOpsController string) (bool, error) {
 	// This is the expected cli utils we expect you to haveinstalled
 	log.Info("Running checks")
 	cliUtils := [3]string{"kubectl", "docker", "git"}
@@ -30,10 +33,17 @@ func CheckPreReqs(lastinstalldir string) (bool, error) {
 		}
 	}
 	// Now check for the existance of a previously installed cluster
-	//	NOTE: I do break one of my rules here but this is just a PoC
 	if _, err := os.Stat(lastinstalldir); !os.IsNotExist(err) {
-		log.Fatal("Ooops! Looks like there are stray artifacts found: ", lastinstalldir)
+		return false, errors.New("stray artifacts found: " + lastinstalldir)
 	}
+
+	// Check to see if a valid gitops controller is passed through
+	if gitOpsController != "argocd" && gitOpsController != "fluxcd" {
+		return false, errors.New("unrecognized gitops controller: " + gitOpsController)
+
+	}
+
+	// If we're here, we should be okay
 	return true, nil
 }
 
@@ -245,4 +255,39 @@ func B64EncodeFile(file string) (string, error) {
 
 	// return result
 	return encoded, nil
+}
+
+// RunKustomize runs kustomize on a specific dir and outputs it to a YAML to use for later
+func RunKustomize(dir string, outfile string) (bool, error) {
+	// set up where to run kustomize, how to write it, and which file to create
+	kustomizeDir := dir
+	fSys := filesys.MakeFsOnDisk()
+	writer, err := os.Create(outfile)
+	if err != nil {
+		return false, err
+	}
+
+	// The default options are fine for our use case
+	k := krusty.MakeKustomizer(krusty.MakeDefaultOptions())
+
+	// Run Kustomize
+	m, err := k.Run(fSys, kustomizeDir)
+	if err != nil {
+		return false, err
+	}
+
+	// Convert to YAML
+	yml, err := m.AsYaml()
+	if err != nil {
+		return false, err
+	}
+
+	// Write YAML out
+	_, err = writer.Write(yml)
+	if err != nil {
+		return false, err
+	}
+
+	// If we're here, we should be okay
+	return false, nil
 }
