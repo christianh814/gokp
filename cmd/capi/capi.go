@@ -1127,6 +1127,7 @@ func MoveAzureSecrets(src string, dest string) (bool, error) {
 		return false, err
 	}
 	log.Info("got secret")
+	secret.ObjectMeta.ResourceVersion = ""
 
 	_, err = destclientset.CoreV1().Secrets("default").Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
@@ -1148,6 +1149,8 @@ func MoveAzureSecrets(src string, dest string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
+	azureIdentity.SetResourceVersion("")
 
 	_, err = dynamicdest.Resource(resourceId).Namespace("default").Create(context.TODO(), azureIdentity, metav1.CreateOptions{})
 	if err != nil {
@@ -1211,7 +1214,10 @@ func MoveMgmtCluster(src string, dest string, capiImplementation string) (bool, 
 		if err != nil {
 			return false, err
 		}
-		MoveAzureSecrets(src, dest)
+		_, err = MoveAzureSecrets(src, dest)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	if err != nil {
