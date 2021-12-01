@@ -32,6 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -42,13 +43,298 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
+
+	corev1 "k8s.io/api/core/v1"
+	coreV1Types "k8s.io/client-go/kubernetes/typed/core/v1"
+	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 )
 
 var CNIurl string = "https://docs.projectcalico.org/v3.20/manifests/calico.yaml"
-
+var azureCNIurl string = "https://raw.githubusercontent.com/kubernetes-sigs/cluster-api-provider-azure/main/templates/addons/calico.yaml"
 var decUnstructured = yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 
 var KubernetesVersion string = "v1.22.2"
+
+func CreateAzureK8sInstance(kindkconfig string, clusterName *string, workdir string, azureCredsMap map[string]string, capicfg string, createHaCluster bool) (bool, error) {
+	log.Info("Started creating Azure cluster")
+	log.Info(kindkconfig)
+
+	var secretsClient coreV1Types.SecretInterface
+
+	// Set up variables
+	var cpMachineCount int64
+	var workerMachineCount int64
+	log.Info("Setting up credentials.")
+
+	for k := range azureCredsMap {
+		os.Setenv(k, azureCredsMap[k])
+	}
+	os.Setenv("AZURE_CLUSTER_IDENTITY_SECRET_NAME", "cluster-identity-secret")
+	os.Setenv("AZURE_CLUSTER_IDENTITY_SECRET_NAMESPACE", "default")
+	os.Setenv("CLUSTER_IDENTITY_NAME", "cluster-identity")
+	clusterInstallConfig, err := clientcmd.BuildConfigFromFlags("", kindkconfig)
+	//log.Info(clusterInstallConfig)
+	if err != nil {
+		return false, err
+	}
+
+	clientset, err := kubernetes.NewForConfig(clusterInstallConfig)
+	if err != nil {
+		return false, err
+	}
+
+	secretsClient = clientset.CoreV1().Secrets("default")
+
+	spClientSecret := os.Getenv("AZURE_CLIENT_SECRET")
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-identity-secret",
+			Namespace: "default",
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{"clientSecret": []byte(spClientSecret)},
+	}
+
+	_, err = secretsClient.Create(context.TODO(), secret, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	log.Info("created sp secret")
+
+	// init Azure provider into the Kind instance
+	log.Info("Initializing Azure provider")
+	c, err := capiclient.New("")
+	if err != nil {
+		return false, err
+	}
+
+	_, err = c.Init(capiclient.InitOptions{
+		Kubeconfig:              capiclient.Kubeconfig{Path: kindkconfig},
+		InfrastructureProviders: []string{"azure"},
+		LogUsageInstructions:    false,
+	})
+
+	if err != nil {
+		return false, err
+	}
+	log.Info("creating azureidentity")
+	dynamic := dynamic.NewForConfigOrDie(clusterInstallConfig)
+
+	identity := &infrav1.AzureClusterIdentity{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AzureClusterIdentity",
+			APIVersion: "infrastructure.cluster.x-k8s.io/v1beta1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cluster-identity",
+		},
+		Spec: infrav1.AzureClusterIdentitySpec{
+			Type:         infrav1.ServicePrincipal,
+			ClientID:     os.Getenv("AZURE_CLIENT_ID"),
+			ClientSecret: corev1.SecretReference{Name: "cluster-identity-secret"},
+			TenantID:     os.Getenv("AZURE_TENANT_ID"),
+			AllowedNamespaces: &infrav1.AllowedNamespaces{
+				NamespaceList: []string{"default"},
+			},
+		},
+	}
+
+	resourceId := schema.GroupVersionResource{
+		Group:    "infrastructure.cluster.x-k8s.io",
+		Version:  "v1beta1",
+		Resource: "azureclusteridentities",
+	}
+	//identity_json, err := json.Marshal(identity)
+	if err != nil {
+		return false, err
+	}
+	identity_temp, err := runtime.DefaultUnstructuredConverter.ToUnstructured(identity)
+	if err != nil {
+		return false, err
+	}
+	identity_uns := &unstructured.Unstructured{
+		Object: identity_temp,
+	}
+
+	log.Info("trying to create azureidentity")
+	_, err = dynamic.Resource(resourceId).Namespace("default").Create(context.TODO(), identity_uns, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	os.Setenv("AZURE_RESOURCE_GROUP", "capz-"+*clusterName)
+
+	// Generate cluster YAML for CAPI on KIND and apply it
+	newClient, err := capiclient.New("")
+	if err != nil {
+		return false, err
+	}
+
+	//	Set up options to write out the install YAML
+	//	TODO: Make Kubernetes version an option
+	if createHaCluster {
+		// If HA was requested we create it
+		cpMachineCount = 3
+		workerMachineCount = 3
+		//
+	} else {
+		// If HA was NOT requested we create a small cluster
+		cpMachineCount = 1
+		workerMachineCount = 2
+	}
+	cto := capiclient.GetClusterTemplateOptions{
+		Kubeconfig:               capiclient.Kubeconfig{Path: kindkconfig},
+		ClusterName:              *clusterName,
+		ControlPlaneMachineCount: &cpMachineCount,
+		WorkerMachineCount:       &workerMachineCount,
+		KubernetesVersion:        KubernetesVersion,
+		TargetNamespace:          "default",
+	}
+
+	//	Load up the config with the options
+	installYaml, err := newClient.GetClusterTemplate(cto)
+
+	if err != nil {
+		return false, err
+	}
+
+	// Write the install file out
+	installClusterYaml := workdir + "/" + "install-cluster.yaml"
+	err = utils.WriteYamlOutput(installYaml, installClusterYaml)
+	if err != nil {
+		return false, err
+	}
+	// Check to see if it's rolled out, if not then wait 5 seconds and check again. Stop after 10x
+	counter := 0
+	for runs := 10; counter <= runs; counter++ {
+		capaClient := clientset.AppsV1().Deployments("capz-system")
+		if counter > runs {
+			return false, errors.New("CAPI Controller took too long to roll out")
+		}
+		capaDeployment, err := capaClient.Get(context.TODO(), "capz-controller-manager", metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		availableReplicas := capaDeployment.Status.AvailableReplicas
+		if availableReplicas > int32(0) {
+			time.Sleep(5 * time.Second)
+			break
+		}
+		time.Sleep(5 * time.Second)
+	}
+	// Apply the YAML to the KIND instance so that the cluster gets installed on AWS
+	log.Info("Preflight complete, installing cluster")
+	err = utils.SplitYamls(workdir+"/"+"capi-install-yamls-output", installClusterYaml, "---")
+	if err != nil {
+		return false, err
+	}
+
+	//	get a list of those files
+	yamlFiles, err := filepath.Glob(workdir + "/" + "capi-install-yamls-output" + "/" + "*.yaml")
+	if err != nil {
+		return false, err
+	}
+
+	for _, yamlFile := range yamlFiles {
+		err = DoSSA(context.TODO(), clusterInstallConfig, yamlFile)
+		if err != nil {
+			log.Warn("Unable to read YAML: ", err)
+			//return false, err
+		}
+	}
+	//	use clientcmd to apply the configuration
+
+	log.Info("submitted cluster config")
+
+	//	First, wait for the infra to appear
+	_, err = waitForAWSInfra(clusterInstallConfig, *clusterName)
+	if err != nil {
+		return false, err
+	}
+
+	//	Then, wait for the CP to appear
+	_, err = waitForCP(clusterInstallConfig, *clusterName, createHaCluster)
+	if err != nil {
+		return false, err
+	}
+
+	log.Info("Control Plane Nodes are Online, saving Kubeconfig")
+
+	// Write out CAPI kubeconfig and save it
+	clusterKubeconfig, err := c.GetKubeconfig(capiclient.GetKubeconfigOptions{
+		Kubeconfig:          capiclient.Kubeconfig{Path: kindkconfig},
+		WorkloadClusterName: *clusterName,
+	})
+	if err != nil {
+		return false, err
+	}
+
+	clusterkcfg, err := os.Create(capicfg)
+	if err != nil {
+		return false, err
+	}
+	clusterkcfg.WriteString(clusterKubeconfig)
+	clusterkcfg.Close()
+
+	//Apply the CNI solution. For now we use Calico
+	//	TODO: This should be something that is an end user can choose
+
+	// Set up the Capi CFG connection
+	capiInstallConfig, err := clientcmd.BuildConfigFromFlags("", capicfg)
+	if err != nil {
+		return false, err
+	}
+	//	Download the CNI YAML
+	cniYaml := workdir + "/" + "cni.yaml"
+	_, err = utils.DownloadFile(cniYaml, azureCNIurl)
+	if err != nil {
+		return false, err
+	}
+
+	//	Split the  CNI yaml into individual files
+	err = utils.SplitYamls(workdir+"/"+"cni-output", cniYaml, "---")
+	if err != nil {
+		return false, err
+	}
+
+	//	get a list of those files
+	cniyamlFiles, err := filepath.Glob(workdir + "/" + "cni-output" + "/" + "*.yaml")
+	if err != nil {
+		return false, err
+	}
+
+	for _, cniyamlFile := range cniyamlFiles {
+		err = DoSSA(context.TODO(), capiInstallConfig, cniyamlFile)
+		if err != nil {
+			if !strings.Contains(err.Error(), "is missing in") {
+				return false, err
+			}
+			//log.Warn("Unable to read YAML: ", err)
+		}
+	}
+
+	// Wait until Nodes are READY
+	log.Info("Waiting for worker nodes to come online")
+
+	// HACK: We sleep to give time for the CNI to rollout
+	//	TODO: Wait until CNI Deployment is done
+	time.Sleep(time.Minute)
+
+	_, err = waitForReadyNodes(capiInstallConfig)
+	if err != nil {
+		return false, err
+	}
+
+	// Unexport AWS settings
+	os.Unsetenv("AWS_B64ENCODED_CREDENTIALS")
+	for k := range azureCredsMap {
+		os.Unsetenv(k)
+	}
+
+	// If we're here, that means everything turned out okay
+	log.Info("Successfully created Azure Kubernetes Cluster")
+	return true, nil
+}
 
 // CreateAwsK8sInstance creates a Kubernetes cluster on AWS using CAPI and CAPI-AWS
 func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir string, awscreds map[string]string, capicfg string, createHaCluster bool, skipCloudFormation bool) (bool, error) {
@@ -297,13 +583,12 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 	}
 
 	// Unexport AWS settings
-	os.Unsetenv("AWS_B64ENCODED_CREDENTIALS")
 	for k := range awscreds {
 		os.Unsetenv(k)
 	}
 
 	// If we're here, that means everything turned out okay
-	log.Info("Successfully created AWS Kubernetes Cluster")
+	log.Info("Successfully created Azure Kubernetes Cluster")
 	return true, nil
 }
 
@@ -812,8 +1097,68 @@ func DeleteCluster(cfg string, name string) (bool, error) {
 	return true, nil
 }
 
+// CopyAzureSecrets
+func MoveAzureSecrets(src string, dest string) (bool, error) {
+	// Create clients
+	log.Info("creating clients for moving azure secrets")
+	srcclient, err := clientcmd.BuildConfigFromFlags("", src)
+	if err != nil {
+		return false, err
+	}
+	srcclientset, err := kubernetes.NewForConfig(srcclient)
+	if err != nil {
+		return false, err
+	}
+	destclient, err := clientcmd.BuildConfigFromFlags("", dest)
+	if err != nil {
+		return false, err
+	}
+	destclientset, err := kubernetes.NewForConfig(destclient)
+	if err != nil {
+		return false, err
+	}
+	log.Info("src: " + src)
+	log.Info("dest: " + dest)
+
+	// Get and move secret
+	log.Info("moving secret")
+	secret, err := srcclientset.CoreV1().Secrets("default").Get(context.TODO(), "cluster-identity-secret", metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+	log.Info("got secret")
+
+	_, err = destclientset.CoreV1().Secrets("default").Create(context.TODO(), secret, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	log.Info("copied secret")
+	// Get and move AzureIdentity
+	log.Info("moving azure identity")
+	dynamicsrc := dynamic.NewForConfigOrDie(srcclient)
+	dynamicdest := dynamic.NewForConfigOrDie(destclient)
+
+	resourceId := schema.GroupVersionResource{
+		Group:    "infrastructure.cluster.x-k8s.io",
+		Version:  "v1beta1",
+		Resource: "azureclusteridentities",
+	}
+
+	azureIdentity, err := dynamicsrc.Resource(resourceId).Namespace("default").Get(context.TODO(), "cluster-identity", metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+
+	_, err = dynamicdest.Resource(resourceId).Namespace("default").Create(context.TODO(), azureIdentity, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+	log.Info("copied azure identity")
+	return true, nil
+}
+
 // MoveMgmtCluster moves the management cluster from src kubeconfig to dest kubeconfig
-func MoveMgmtCluster(src string, dest string) (bool, error) {
+func MoveMgmtCluster(src string, dest string, capiImplementation string) (bool, error) {
 	// create capi client
 	c, err := capiclient.New("")
 	if err != nil {
@@ -831,25 +1176,43 @@ func MoveMgmtCluster(src string, dest string) (bool, error) {
 	}
 
 	// Get the secret and base64 encode it (you'd think it would come encoded but it doesn't)
-	secret, err := srcclientset.CoreV1().Secrets("capa-system").Get(context.TODO(), "capa-manager-bootstrap-credentials", metav1.GetOptions{})
-	if err != nil {
-		return false, err
-	}
-
-	s := secret.Data["credentials"]
-	sb64 := base64.StdEncoding.EncodeToString(s)
-	if err != nil {
-		return false, err
-	}
-
-	// export it into the env
-	os.Setenv("AWS_B64ENCODED_CREDENTIALS", sb64)
+	capNamespace := capiImplementation + "-system"
+	capSecretName := capiImplementation + "-manager-bootstrap-credentials"
 
 	// init the dest cluster
-	_, err = c.Init(capiclient.InitOptions{
-		Kubeconfig:              capiclient.Kubeconfig{Path: dest},
-		InfrastructureProviders: []string{"aws"},
-	})
+	if capiImplementation == "capa" {
+		secret, err := srcclientset.CoreV1().Secrets(capNamespace).Get(context.TODO(), capSecretName, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		s := secret.Data["credentials"]
+		sb64 := base64.StdEncoding.EncodeToString(s)
+		if err != nil {
+			return false, err
+		}
+
+		// export it into the env
+		os.Setenv("AWS_B64ENCODED_CREDENTIALS", sb64)
+		_, err = c.Init(capiclient.InitOptions{
+			Kubeconfig:              capiclient.Kubeconfig{Path: dest},
+			InfrastructureProviders: []string{"aws"},
+		})
+
+		if err != nil {
+			return false, err
+		}
+	} else if capiImplementation == "capz" {
+		log.Info("setting op CAPZ on target cluster")
+		_, err = c.Init(capiclient.InitOptions{
+			Kubeconfig:              capiclient.Kubeconfig{Path: dest},
+			InfrastructureProviders: []string{"azure"},
+		})
+
+		if err != nil {
+			return false, err
+		}
+		MoveAzureSecrets(src, dest)
+	}
 
 	if err != nil {
 		return false, err
@@ -865,7 +1228,7 @@ func MoveMgmtCluster(src string, dest string) (bool, error) {
 	}
 
 	// Unset the env var
-	os.Unsetenv("AWS_B64ENCODED_CREDENTIALS")
+	//os.Unsetenv("AWS_B64ENCODED_CREDENTIALS")
 
 	// if we're here we must be okay
 	return true, nil

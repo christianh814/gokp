@@ -126,21 +126,55 @@ require (
 )
 
 require (
+	github.com/Azure/aad-pod-identity v1.8.5 // indirect
+	github.com/Azure/azure-sdk-for-go v58.1.0+incompatible // indirect
+	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
+	github.com/Azure/go-autorest/autorest v0.11.21 // indirect
+	github.com/Azure/go-autorest/autorest/adal v0.9.16 // indirect
+	github.com/Azure/go-autorest/autorest/azure/auth v0.5.8 // indirect
+	github.com/Azure/go-autorest/autorest/azure/cli v0.4.2 // indirect
+	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
+	github.com/Azure/go-autorest/autorest/to v0.4.0 // indirect
+	github.com/Azure/go-autorest/autorest/validation v0.3.1 // indirect
+	github.com/Azure/go-autorest/logger v0.2.1 // indirect
+	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
+	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
+	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
+	github.com/dimchansky/utfbom v1.1.1 // indirect
+	github.com/felixge/httpsnoop v1.0.2 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.19.5 // indirect
 	github.com/go-openapi/swag v0.19.14 // indirect
+	github.com/golang-jwt/jwt/v4 v4.0.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
+	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
+	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.25.0 // indirect
+	go.opentelemetry.io/otel v1.0.1 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.0.1 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.0.1 // indirect
+	go.opentelemetry.io/otel/exporters/prometheus v0.24.0 // indirect
+	go.opentelemetry.io/otel/internal/metric v0.24.0 // indirect
+	go.opentelemetry.io/otel/metric v0.24.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.0.1 // indirect
+	go.opentelemetry.io/otel/sdk/export/metric v0.24.0 // indirect
+	go.opentelemetry.io/otel/sdk/metric v0.24.0 // indirect
+	go.opentelemetry.io/otel/trace v1.0.1 // indirect
+	go.opentelemetry.io/proto/otlp v0.9.0 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
+	google.golang.org/genproto v0.0.0-20211005153810-c76a74d43a8e // indirect
+	google.golang.org/grpc v1.41.0 // indirect
 	k8s.io/apiextensions-apiserver v0.22.2 // indirect
+	sigs.k8s.io/cluster-api-provider-azure v1.0.0 // indirect
 )
 
 replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.0.1

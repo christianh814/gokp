@@ -16,22 +16,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// awscreateCmd represents the aws create command
-var awscreateCmd = &cobra.Command{
-	Use:   "aws",
-	Short: "Creates a GOKP Cluster on AWS",
-	Long: `Create a GOKP Cluster on AWS. This will build a cluster on AWS using the given
+// azurecreateCmd represents the azure create command
+var azurecreateCmd = &cobra.Command{
+	Use:   "azure",
+	Short: "Creates a GOKP Cluster on azure",
+	Long: `Create a GOKP Cluster on azure. This will build a cluster on azure using the given
 credentials. For example:
 
-gokp create-cluster --cluster-name=mycluster \
+//todo: change
+gokp create-cluster azure --cluster-name=mycluster \
 --github-token=githubtoken \
---aws-ssh-key=sshkeynameonaws \
---aws-access-key=awsaccesskeyid \
---aws-secret-key=awssecretaccesskey \
---private-repo=true
-
-The aws ssh key must already exist on your account (the installer
-doesn't create one for you).`,
+--azure-app-id=128eae80-a421-48a8-896e-a0927f0e0155 \
+--azure-app-secret='i-7M5O_7~X0gYruwi9_~EGzIoLv01emIZ~' \
+--azure-tenant-id=72f988bf-86f1-41af-91ab-2d7cd011db47 \
+--azure-subscription-id=d19dddf3-9520-4226-a313-ae8ee08675e5 \
+--private-repo=true`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// create home dir
 		err := os.MkdirAll(os.Getenv("HOME")+"/.gokp", 0775)
@@ -52,14 +51,15 @@ doesn't create one for you).`,
 		// Set GitOps Controller
 		gitOpsController, _ := cmd.Flags().GetString("gitops-controller")
 
-		// Grab AWS related flags
-		awsRegion, _ := cmd.Flags().GetString("aws-region")
-		awsAccessKey, _ := cmd.Flags().GetString("aws-access-key")
-		awsSecretKey, _ := cmd.Flags().GetString("aws-secret-key")
-		awsSSHKey, _ := cmd.Flags().GetString("aws-ssh-key")
-		awsCPMachine, _ := cmd.Flags().GetString("aws-control-plane-machine")
-		awsWMachine, _ := cmd.Flags().GetString("aws-node-machine")
-		skipCloudFormation, _ := cmd.Flags().GetBool("skip-cloud-formation")
+		// Grab Azure related flags
+		azureRegion, _ := cmd.Flags().GetString("azure-region")
+		azureAppId, _ := cmd.Flags().GetString("azure-app-id")
+		azureAppSecret, _ := cmd.Flags().GetString("azure-app-secret")
+		azureTenantId, _ := cmd.Flags().GetString("azure-tenant-id")
+		azureSubscriptionId, _ := cmd.Flags().GetString("azure-subscription-id")
+		azureSSHKey, _ := cmd.Flags().GetString("azure-ssh-key")
+		azureCPMachine, _ := cmd.Flags().GetString("azure-control-plane-machine")
+		azureWMachine, _ := cmd.Flags().GetString("azure-node-machine")
 
 		CapiCfg := WorkDir + "/" + clusterName + ".kubeconfig"
 		gokpartifacts := os.Getenv("HOME") + "/.gokp/" + clusterName
@@ -73,6 +73,7 @@ doesn't create one for you).`,
 		}
 
 		// Create KIND instance
+		log.Info("entering Azure command")
 		log.Info("Creating temporary control plane")
 		err = kind.CreateKindCluster(tcpName, KindCfg)
 		if err != nil {
@@ -80,18 +81,20 @@ doesn't create one for you).`,
 		}
 
 		// Create CAPI instance on AWS
-		awsCredsMap := map[string]string{
-			"AWS_REGION":                     awsRegion,
-			"AWS_ACCESS_KEY_ID":              awsAccessKey,
-			"AWS_SECRET_ACCESS_KEY":          awsSecretKey,
-			"AWS_SSH_KEY_NAME":               awsSSHKey,
-			"AWS_CONTROL_PLANE_MACHINE_TYPE": awsCPMachine,
-			"AWS_NODE_MACHINE_TYPE":          awsWMachine,
+		azureCredsMap := map[string]string{
+			"AZURE_LOCATION":                   azureRegion,
+			"AZURE_CLIENT_ID":                  azureAppId,
+			"AZURE_CLIENT_SECRET":              azureAppSecret,
+			"AZURE_TENANT_ID":                  azureTenantId,
+			"AZURE_SUBSCRIPTION_ID":            azureSubscriptionId,
+			"AZURE_CONTROL_PLANE_MACHINE_TYPE": azureCPMachine,
+			"AZURE_NODE_MACHINE_TYPE":          azureWMachine,
+			"AZURE_SSH	_KEY": azureSSHKey,
 		}
 
 		// By default, create an HA Cluster
 		haCluster := true
-		_, err = capi.CreateAwsK8sInstance(KindCfg, &clusterName, WorkDir, awsCredsMap, CapiCfg, haCluster, skipCloudFormation)
+		_, err = capi.CreateAzureK8sInstance(KindCfg, &clusterName, WorkDir, azureCredsMap, CapiCfg, haCluster)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -154,7 +157,7 @@ doesn't create one for you).`,
 
 		// MOVE from kind to capi instance
 		log.Info("Moving CAPI Artifacts to: " + clusterName)
-		_, err = capi.MoveMgmtCluster(KindCfg, CapiCfg, "capa")
+		_, err = capi.MoveMgmtCluster(KindCfg, CapiCfg, "capz")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -200,28 +203,33 @@ doesn't create one for you).`,
 }
 
 func init() {
-	createClusterCmd.AddCommand(awscreateCmd)
+	createClusterCmd.AddCommand(azurecreateCmd)
 
 	// GitOps Controller Flag
-	awscreateCmd.Flags().String("gitops-controller", "argocd", "The GitOps Controller to use for this cluster.")
+	azurecreateCmd.Flags().String("gitops-controller", "argocd", "The GitOps Controller to use for this cluster.")
 
 	// Repo specific flags
-	awscreateCmd.Flags().String("github-token", "", "GitHub token to use.")
-	awscreateCmd.Flags().String("cluster-name", "", "Name of your cluster.")
-	awscreateCmd.Flags().BoolP("private-repo", "", true, "Create a private repo.")
+	azurecreateCmd.Flags().String("github-token", "", "GitHub token to use.")
+	azurecreateCmd.Flags().String("cluster-name", "", "Name of your cluster.")
+	azurecreateCmd.Flags().BoolP("private-repo", "", true, "Create a private repo.")
 
-	//AWS Specific flags
-	awscreateCmd.Flags().String("aws-region", "us-east-1", "Which region to deploy to.")
-	awscreateCmd.Flags().String("aws-access-key", "", "Your AWS Access Key.")
-	awscreateCmd.Flags().String("aws-secret-key", "", "Your AWS Secret Key.")
-	awscreateCmd.Flags().String("aws-ssh-key", "default", "The SSH key in AWS that you want to use for the instances.")
-	awscreateCmd.Flags().String("aws-control-plane-machine", "m4.xlarge", "The AWS instance type for the Control Plane")
-	awscreateCmd.Flags().String("aws-node-machine", "m4.xlarge", "The AWS instance type for the Worker instances")
-	awscreateCmd.Flags().BoolP("skip-cloud-formation", "", false, "Skip the creation of the CloudFormation Template.")
+	// Azure Specific flags
+	azurecreateCmd.Flags().String("azure-region", "westus2", "Which region to deploy to.")
+	azurecreateCmd.Flags().String("azure-app-id", "", "Your Azure app ID.")
+	azurecreateCmd.Flags().String("azure-app-secret", "", "Your Azure Secret Key.")
+	azurecreateCmd.Flags().String("azure-tenant-id", "", "Your Azure tenant ID.")
+	azurecreateCmd.Flags().String("azure-subscription-id", "", "Your Azure subscription ID.")
+	azurecreateCmd.Flags().String("azure-ssh-key", "default", "The SSH key in AWS that you want to use for the instances.")
+	azurecreateCmd.Flags().String("azure-control-plane-machine", "Standard_D2s_v3", "The Azure VM type for the Control Plane")
+	azurecreateCmd.Flags().String("azure-node-machine", "Standard_D2s_v3", "The Azure VM type for the Worker instances")
 
 	// require the following flags
-	awscreateCmd.MarkFlagRequired("github-token")
-	awscreateCmd.MarkFlagRequired("cluster-name")
-	awscreateCmd.MarkFlagRequired("aws-access-key")
-	awscreateCmd.MarkFlagRequired("aws-secret-key")
+	azurecreateCmd.MarkFlagRequired("github-token")
+	azurecreateCmd.MarkFlagRequired("cluster-name")
+	azurecreateCmd.MarkFlagRequired("azure-app-id")
+	azurecreateCmd.MarkFlagRequired("azure-app-secret")
+	azurecreateCmd.MarkFlagRequired("azure-tenant-id")
+	azurecreateCmd.MarkFlagRequired("azure-subscription-id")
 }
+
+//
