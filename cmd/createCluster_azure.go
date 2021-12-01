@@ -26,10 +26,10 @@ credentials. For example:
 //todo: change
 gokp create-cluster azure --cluster-name=mycluster \
 --github-token=githubtoken \
---azure-app-id=128eae80-a421-48a8-896e-a0927f0e0155 \
---azure-app-secret='i-7M5O_7~X0gYruwi9_~EGzIoLv01emIZ~' \
---azure-tenant-id=72f988bf-86f1-41af-91ab-2d7cd011db47 \
---azure-subscription-id=d19dddf3-9520-4226-a313-ae8ee08675e5 \
+--azure-app-id='app-id' \
+--azure-app-secret='app-secret' \
+--azure-tenant-id='tenant-id' \
+--azure-subscription-id='subscription-id' \
 --private-repo=true`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// create home dir
