@@ -117,6 +117,26 @@ func CreateAzureK8sInstance(kindkconfig string, clusterName *string, workdir str
 	if err != nil {
 		return false, err
 	}
+
+	// Check to see if it's rolled out, if not then wait 20 seconds and check again. Stop after 15x
+	counter := 0
+	for runs := 15; counter <= runs; counter++ {
+		capaClient := clientset.AppsV1().Deployments("capz-system")
+		if counter > runs {
+			return false, errors.New("CAPI Controller took too long to roll out")
+		}
+		capaDeployment, err := capaClient.Get(context.TODO(), "capz-controller-manager", metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		availableReplicas := capaDeployment.Status.AvailableReplicas
+		if availableReplicas > int32(0) {
+			time.Sleep(20 * time.Second)
+			break
+		}
+		time.Sleep(20 * time.Second)
+	}
 	log.Info("creating azureidentity")
 	dynamic := dynamic.NewForConfigOrDie(clusterInstallConfig)
 
@@ -203,25 +223,7 @@ func CreateAzureK8sInstance(kindkconfig string, clusterName *string, workdir str
 	if err != nil {
 		return false, err
 	}
-	// Check to see if it's rolled out, if not then wait 5 seconds and check again. Stop after 10x
-	counter := 0
-	for runs := 10; counter <= runs; counter++ {
-		capaClient := clientset.AppsV1().Deployments("capz-system")
-		if counter > runs {
-			return false, errors.New("CAPI Controller took too long to roll out")
-		}
-		capaDeployment, err := capaClient.Get(context.TODO(), "capz-controller-manager", metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
 
-		availableReplicas := capaDeployment.Status.AvailableReplicas
-		if availableReplicas > int32(0) {
-			time.Sleep(5 * time.Second)
-			break
-		}
-		time.Sleep(5 * time.Second)
-	}
 	// Apply the YAML to the KIND instance so that the cluster gets installed on AWS
 	log.Info("Preflight complete, installing cluster")
 	err = utils.SplitYamls(workdir+"/"+"capi-install-yamls-output", installClusterYaml, "---")
@@ -1177,7 +1179,15 @@ func MoveMgmtCluster(src string, dest string, capiImplementation string) (bool, 
 	if err != nil {
 		return false, err
 	}
-
+	// Create clientset for dest
+	destclient, err := clientcmd.BuildConfigFromFlags("", dest)
+	if err != nil {
+		return false, err
+	}
+	destclientset, err := kubernetes.NewForConfig(destclient)
+	if err != nil {
+		return false, err
+	}
 	// Get the secret and base64 encode it (you'd think it would come encoded but it doesn't)
 	capNamespace := capiImplementation + "-system"
 	capSecretName := capiImplementation + "-manager-bootstrap-credentials"
@@ -1210,7 +1220,25 @@ func MoveMgmtCluster(src string, dest string, capiImplementation string) (bool, 
 			Kubeconfig:              capiclient.Kubeconfig{Path: dest},
 			InfrastructureProviders: []string{"azure"},
 		})
+		// Check to see if it's rolled out, if not then wait 20 seconds and check again. Stop after 15x
+		counter := 0
+		for runs := 15; counter <= runs; counter++ {
+			capzClient := destclientset.AppsV1().Deployments("capz-system")
+			if counter > runs {
+				return false, errors.New("CAPI Controller took too long to roll out")
+			}
+			capzDeployment, err := capzClient.Get(context.TODO(), "capz-controller-manager", metav1.GetOptions{})
+			if err != nil {
+				return false, err
+			}
 
+			availableReplicas := capzDeployment.Status.AvailableReplicas
+			if availableReplicas > int32(0) {
+				time.Sleep(20 * time.Second)
+				break
+			}
+			time.Sleep(20 * time.Second)
+		}
 		if err != nil {
 			return false, err
 		}
