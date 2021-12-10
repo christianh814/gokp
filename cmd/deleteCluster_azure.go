@@ -10,11 +10,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// awsDeleteCmd represents the aws delete command
-var awsDeleteCmd = &cobra.Command{
-	Use:   "aws",
-	Short: "Deletes a GOKP cluster running on AWS",
-	Long: `This will delete your cluster that is running on aws
+// azureDeleteCmd represents the aws delete command
+var azureDeleteCmd = &cobra.Command{
+	Use:   "azure",
+	Short: "Deletes a GOKP cluster running on Azure",
+	Long: `This will delete your cluster that is running on Azure
 based on the kubeconfig file and name you pass it.
 
 This only deletes the cluster and not the git repo.`,
@@ -40,7 +40,7 @@ This only deletes the cluster and not the git repo.`,
 
 		// Move Capi components to the KIND cluster
 		log.Info("Moving CAPI Artifacts to the tempoary control plane")
-		_, err = capi.MoveMgmtCluster(CapiCfg, KindCfg, "capa")
+		_, err = capi.MoveMgmtCluster(CapiCfg, KindCfg, "capz")
 		if err != nil {
 			log.Fatal(err)
 
@@ -67,14 +67,14 @@ This only deletes the cluster and not the git repo.`,
 }
 
 func init() {
-	deleteClusterCmd.AddCommand(awsDeleteCmd)
+	deleteClusterCmd.AddCommand(azureDeleteCmd)
 
 	// Define flags for delete-cluster
-	awsDeleteCmd.Flags().String("kubeconfig", "", "Path to the Kubeconfig file of the gokp cluster")
-	awsDeleteCmd.Flags().String("cluster-name", "", "Name of the gokp cluster.")
+	azureDeleteCmd.Flags().String("kubeconfig", "", "Path to the Kubeconfig file of the gokp cluster")
+	azureDeleteCmd.Flags().String("cluster-name", "", "Name of the gokp cluster.")
 
 	// all flags required
-	awsDeleteCmd.MarkFlagRequired("kubeconfig")
-	awsDeleteCmd.MarkFlagRequired("cluster-name")
+	azureDeleteCmd.MarkFlagRequired("kubeconfig")
+	azureDeleteCmd.MarkFlagRequired("cluster-name")
 
 }
