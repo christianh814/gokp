@@ -44,7 +44,7 @@ func CreateArgoRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo
 				AppsetVers string
 			}{
 				ArgocdVer:  "stable",
-				AppsetVers: "v0.2.0",
+				AppsetVers: "stable",
 			}
 
 			// Write out the kustomization file based on the vars and the template

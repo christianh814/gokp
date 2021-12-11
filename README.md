@@ -2,9 +2,9 @@
 `gokp` aims to install a GitOps Native Kubernetes Platform.
 
 This project is a Proof of Concept centered around getting a GitOps
-aware Kubernetes Platform on Day 0. The installer aims to:
+aware Kubernetes Platform on Day 0 (installation). The installer aims to:
 
-* Install an HA Kubernetes cluster (AWS or Docker)
+* Install an HA Kubernetes cluster (AWS, Azure, or Docker)
 * Install the chosen GitOps controller (Argo CD or Flux CD)
 * Configure the chosen GitOps controller in an opinionated way
 * Export all YAML into a Git repo (GitHub only currently)
