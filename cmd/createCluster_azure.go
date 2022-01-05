@@ -30,6 +30,7 @@ gokp create-cluster azure --cluster-name=mycluster \
 --azure-app-secret='app-secret' \
 --azure-tenant-id='tenant-id' \
 --azure-subscription-id='subscription-id' \
+--azure-resource-group='rg-name'
 --private-repo=true`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// create home dir
@@ -60,6 +61,7 @@ gokp create-cluster azure --cluster-name=mycluster \
 		azureSSHKey, _ := cmd.Flags().GetString("azure-ssh-key")
 		azureCPMachine, _ := cmd.Flags().GetString("azure-control-plane-machine")
 		azureWMachine, _ := cmd.Flags().GetString("azure-node-machine")
+		azureResourceGroup, _ := cmd.Flags().GetString("azure-resource-group")
 
 		CapiCfg := WorkDir + "/" + clusterName + ".kubeconfig"
 		gokpartifacts := os.Getenv("HOME") + "/.gokp/" + clusterName
@@ -89,7 +91,8 @@ gokp create-cluster azure --cluster-name=mycluster \
 			"AZURE_SUBSCRIPTION_ID":            azureSubscriptionId,
 			"AZURE_CONTROL_PLANE_MACHINE_TYPE": azureCPMachine,
 			"AZURE_NODE_MACHINE_TYPE":          azureWMachine,
-			"AZURE_SSH	_KEY": azureSSHKey,
+			"AZURE_SSH_KEY":                    azureSSHKey,
+			"AZURE_RESOURCE_GROUP":             azureResourceGroup,
 		}
 
 		// By default, create an HA Cluster
@@ -222,6 +225,7 @@ func init() {
 	azurecreateCmd.Flags().String("azure-ssh-key", "default", "The SSH key in AWS that you want to use for the instances.")
 	azurecreateCmd.Flags().String("azure-control-plane-machine", "Standard_D2s_v3", "The Azure VM type for the Control Plane")
 	azurecreateCmd.Flags().String("azure-node-machine", "Standard_D2s_v3", "The Azure VM type for the Worker instances")
+	azurecreateCmd.Flags().String("azure-resource-group", "gokp-cluster", "The Azure resource group name")
 
 	// require the following flags
 	azurecreateCmd.MarkFlagRequired("github-token")
