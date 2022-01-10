@@ -115,7 +115,7 @@ gokp create-cluster azure --cluster-name=mycluster \
 			if err != nil {
 				log.Fatal(err)
 			}
-		} else if gitOpsController == "fluxcd" {
+		} else if gitOpsController == "fluxcd" || gitOpsController == "flux" {
 			// Create repo dir structure. Including Flux CD install YAMLs and base YAMLs. Push initial dir structure out
 			_, err = templates.CreateFluxRepoSkel(&clusterName, WorkDir, ghToken, gitopsrepo, &privateRepo)
 			if err != nil {

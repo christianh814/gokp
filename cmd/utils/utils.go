@@ -38,7 +38,7 @@ func CheckPreReqs(lastinstalldir string, gitOpsController string) (bool, error) 
 	}
 
 	// Check to see if a valid gitops controller is passed through
-	if gitOpsController != "argocd" && gitOpsController != "fluxcd" {
+	if gitOpsController != "argocd" && gitOpsController != "fluxcd" && gitOpsController != "flux" {
 		return false, errors.New("unrecognized gitops controller: " + gitOpsController)
 
 	}
