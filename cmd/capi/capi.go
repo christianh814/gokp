@@ -53,7 +53,7 @@ var CNIurl string = "https://docs.projectcalico.org/v3.20/manifests/calico.yaml"
 var azureCNIurl string = "https://raw.githubusercontent.com/kubernetes-sigs/cluster-api-provider-azure/main/templates/addons/calico.yaml"
 var decUnstructured = yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 
-var KubernetesVersion string = "v1.22.2"
+var KubernetesVersion string = "v1.23.3"
 
 func CreateAzureK8sInstance(kindkconfig string, clusterName *string, workdir string, azureCredsMap map[string]string, capicfg string, createHaCluster bool) (bool, error) {
 	log.Info("Started creating Azure cluster")
@@ -361,7 +361,11 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 
 		cfnSvc := cloudformation.NewService(cfn.New(sess))
 
-		err = cfnSvc.ReconcileBootstrapStack(template.Spec.StackName, *template.RenderCloudFormation())
+		// tag things based on the clustername
+		tags := map[string]string{
+			"gokp-cluster": *clusterName,
+		}
+		err = cfnSvc.ReconcileBootstrapStack(template.Spec.StackName, *template.RenderCloudFormation(), tags)
 		if err != nil {
 			return false, err
 		}
