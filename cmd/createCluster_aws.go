@@ -141,7 +141,7 @@ doesn't create one for you).`,
 			if err != nil {
 				log.Fatal(err)
 			}
-		} else if gitOpsController == "fluxcd" {
+		} else if gitOpsController == "fluxcd" || gitOpsController == "flux" {
 			// Install Flux CD on the newly created cluster with all it's components
 			log.Info("Deploying Flux CD GitOps Controller")
 			_, err = flux.BootstrapFluxCD(&clusterName, WorkDir, CapiCfg)
