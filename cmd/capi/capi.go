@@ -53,7 +53,7 @@ var CNIurl string = "https://docs.projectcalico.org/v3.20/manifests/calico.yaml"
 var azureCNIurl string = "https://raw.githubusercontent.com/kubernetes-sigs/cluster-api-provider-azure/main/templates/addons/calico.yaml"
 var decUnstructured = yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 
-var KubernetesVersion string = "v1.22.2"
+var KubernetesVersion string = "v1.23.3"
 
 func CreateAzureK8sInstance(kindkconfig string, clusterName *string, workdir string, azureCredsMap map[string]string, capicfg string, createHaCluster bool) (bool, error) {
 	log.Info("Started creating Azure cluster")
@@ -73,7 +73,6 @@ func CreateAzureK8sInstance(kindkconfig string, clusterName *string, workdir str
 	os.Setenv("AZURE_CLUSTER_IDENTITY_SECRET_NAMESPACE", "default")
 	os.Setenv("CLUSTER_IDENTITY_NAME", "cluster-identity")
 	clusterInstallConfig, err := clientcmd.BuildConfigFromFlags("", kindkconfig)
-	//log.Info(clusterInstallConfig)
 	if err != nil {
 		return false, err
 	}
@@ -99,7 +98,7 @@ func CreateAzureK8sInstance(kindkconfig string, clusterName *string, workdir str
 	if err != nil {
 		return false, err
 	}
-	log.Info("created sp secret")
+	log.Info("Created service principal secret")
 
 	// init Azure provider into the Kind instance
 	log.Info("Initializing Azure provider")
@@ -137,7 +136,7 @@ func CreateAzureK8sInstance(kindkconfig string, clusterName *string, workdir str
 		}
 		time.Sleep(20 * time.Second)
 	}
-	log.Info("creating azureidentity")
+	log.Info("Creating azureidentity")
 	dynamic := dynamic.NewForConfigOrDie(clusterInstallConfig)
 
 	identity := &infrav1.AzureClusterIdentity{
@@ -176,13 +175,11 @@ func CreateAzureK8sInstance(kindkconfig string, clusterName *string, workdir str
 		Object: identity_temp,
 	}
 
-	log.Info("trying to create azureidentity")
 	_, err = dynamic.Resource(resourceId).Namespace("default").Create(context.TODO(), identity_uns, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
 	}
-	os.Setenv("AZURE_RESOURCE_GROUP", "capz-"+*clusterName)
-
+	log.Info("Created azureidentity")
 	// Generate cluster YAML for CAPI on KIND and apply it
 	newClient, err := capiclient.New("")
 	if err != nil {
@@ -246,7 +243,7 @@ func CreateAzureK8sInstance(kindkconfig string, clusterName *string, workdir str
 	}
 	//	use clientcmd to apply the configuration
 
-	log.Info("submitted cluster config")
+	log.Info("Submitted cluster config")
 
 	//	First, wait for the infra to appear
 	_, err = waitForAWSInfra(clusterInstallConfig, *clusterName)
@@ -327,12 +324,15 @@ func CreateAzureK8sInstance(kindkconfig string, clusterName *string, workdir str
 		return false, err
 	}
 
-	// Unexport AWS settings
-	os.Unsetenv("AWS_B64ENCODED_CREDENTIALS")
+	// Unexport Azure settings
+
 	for k := range azureCredsMap {
 		os.Unsetenv(k)
 	}
-
+	os.Unsetenv("AZURE_CLUSTER_IDENTITY_SECRET_NAME")
+	os.Unsetenv("AZURE_CLUSTER_IDENTITY_SECRET_NAMESPACE")
+	os.Unsetenv("CLUSTER_IDENTITY_NAME")
+	os.Unsetenv("AZURE_CLIENT_SECRET")
 	// If we're here, that means everything turned out okay
 	log.Info("Successfully created Azure Kubernetes Cluster")
 	return true, nil
@@ -361,7 +361,11 @@ func CreateAwsK8sInstance(kindkconfig string, clusterName *string, workdir strin
 
 		cfnSvc := cloudformation.NewService(cfn.New(sess))
 
-		err = cfnSvc.ReconcileBootstrapStack(template.Spec.StackName, *template.RenderCloudFormation())
+		// tag things based on the clustername
+		tags := map[string]string{
+			"gokp-cluster": *clusterName,
+		}
+		err = cfnSvc.ReconcileBootstrapStack(template.Spec.StackName, *template.RenderCloudFormation(), tags)
 		if err != nil {
 			return false, err
 		}
