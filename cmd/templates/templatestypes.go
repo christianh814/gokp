@@ -4197,7 +4197,6 @@ namespace: argocd
 resources:
 - argocd-ns.yaml
 - https://raw.githubusercontent.com/argoproj/argo-cd/{{.ArgocdVer}}/manifests/install.yaml
-- https://raw.githubusercontent.com/argoproj-labs/applicationset/{{.AppsetVers}}/manifests/install.yaml
 `
 
 var ArgoCdNameSpaceFile string = `apiVersion: v1
