@@ -40,11 +40,9 @@ func CreateArgoRepoSkel(name *string, workdir string, ghtoken string, gitopsrepo
 		if strings.Contains(dir, "bootstrap") && strings.Contains(dir, "base") {
 			// Set up the vars to go into the template
 			argocdinstall := struct {
-				ArgocdVer  string
-				AppsetVers string
+				ArgocdVer string
 			}{
-				ArgocdVer:  "stable",
-				AppsetVers: "stable",
+				ArgocdVer: "stable",
 			}
 
 			// Write out the kustomization file based on the vars and the template
