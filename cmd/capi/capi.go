@@ -50,11 +50,11 @@ import (
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 )
 
-var CNIurl string = "https://docs.projectcalico.org/v3.20/manifests/calico.yaml"
+var CNIurl string = "https://docs.projectcalico.org/v3.21/manifests/calico.yaml"
 var azureCNIurl string = "https://raw.githubusercontent.com/kubernetes-sigs/cluster-api-provider-azure/main/templates/addons/calico.yaml"
 var decUnstructured = yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 
-var KubernetesVersion string = "v1.23.3"
+var KubernetesVersion string = "v1.24.0"
 
 func CreateAzureK8sInstance(kindkconfig string, clusterName *string, workdir string, azureCredsMap map[string]string, capicfg string, createHaCluster bool) (bool, error) {
 	log.Info("Started creating Azure cluster")
