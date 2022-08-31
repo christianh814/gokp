@@ -11,8 +11,9 @@ import (
 
 // developmentDeleteCmd represents the developmentDelete command
 var developmentDeleteCmd = &cobra.Command{
-	Use:   "development",
-	Short: "Deletes the gokp development cluster",
+	Use:     "development",
+	Aliases: []string{"dev", "devel"},
+	Short:   "Deletes the gokp development cluster",
 	Long: `This will delete your development cluster based on the kubeconfig file
 and name you pass it. This only deletes the local development cluster and not the git repo.`,
 	Run: func(cmd *cobra.Command, args []string) {

@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
@@ -604,6 +605,9 @@ func CreateDevelK8sInstance(kindkconfig string, clusterName *string, workdir str
 	var cpMachineCount int64
 	var workerMachineCount int64
 
+	// Set environment variable for cluster topology
+	os.Setenv("CLUSTER_TOPOLOGY", "true")
+
 	c, err := capiclient.New("")
 	if err != nil {
 		return false, err
@@ -933,7 +937,6 @@ func waitForAWSInfra(restConfig *rest.Config, clustername string) (bool, error) 
 func waitForCP(restConfig *rest.Config, clustername string, createHaCluster bool) (bool, error) {
 	log.Info("Waiting for the Control Plane to appear")
 	// Set the vars we need
-	cpname := clustername + "-control-plane"
 	var expectedCPReplicas int32
 
 	if createHaCluster {
@@ -962,6 +965,11 @@ func waitForCP(restConfig *rest.Config, clustername string, createHaCluster bool
 		}
 		// get the current status, wait for 3 CP nodes
 		kcp := &kcpv1.KubeadmControlPlane{}
+
+		kcplist := &kcpv1.KubeadmControlPlaneList{}
+		c.List(context.TODO(), kcplist, client.InNamespace("default"), &client.ListOptions{LabelSelector: labels.SelectorFromSet(map[string]string{"cluster.x-k8s.io/cluster-name": clustername})})
+		cpname := kcplist.Items[0].Name
+
 		if err := c.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: cpname}, kcp); err != nil {
 			return false, err
 		}
